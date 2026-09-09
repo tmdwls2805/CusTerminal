@@ -5,3 +5,6 @@ MyTerm/Package.resolved
 
 # macOS
 .DS_Store
+
+# 사용자별 저장 커맨드 (앱이 실행 중 생성/수정)
+MyTerm/commands.json

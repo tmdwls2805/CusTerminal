@@ -15,8 +15,13 @@ final class CommandStore {
   private let fileURL: URL
 
   init() {
-    let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-      .appendingPathComponent("MyTerm", isDirectory: true)
+    // 저장 위치는 이 소스 파일 기준 프로젝트 루트(MyTerm/) 안 commands.json.
+    // #filePath = .../MyTerm/Sources/MyTerm/Command.swift → 세 단계 위가 MyTerm/.
+    let source = URL(fileURLWithPath: #filePath)
+    let dir = source
+      .deletingLastPathComponent()  // Sources/MyTerm
+      .deletingLastPathComponent()  // Sources
+      .deletingLastPathComponent()  // MyTerm
     try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
     self.fileURL = dir.appendingPathComponent("commands.json")
     load()

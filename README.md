@@ -54,3 +54,9 @@ layout 4 3   # MyTerm 창으로 4×3 분할 열림
 ```
 
 `MYTERM_BIN` 이 없으면 기존대로 iTerm 사용.
+
+### 자주 쓰는 명령 저장
+
+MyTerm 창 왼쪽 사이드바에 명령을 저장해두고, 카드를 pane 으로 드래그 & 드롭해서 실행할 수 있음.
+저장 파일: `MyTerm/commands.json` (프로젝트 폴더 안, `.gitignore` 처리되어 사용자별 로컬 저장).
+자세한 내용은 [`MyTerm/README.md`](./MyTerm/README.md#자주-쓰는-명령-저장--불러오기) 참고.

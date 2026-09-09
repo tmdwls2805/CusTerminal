@@ -31,6 +31,8 @@ final class TerminalHolder: ObservableObject {
     // 배경 검정 / 글자 순수 흰색으로 강제. (기본은 흐릿한 회색톤)
     v.nativeBackgroundColor = .black
     v.nativeForegroundColor = .white
+    // 우클릭 컨텍스트 메뉴: 복사 / 붙여넣기 / 모두 선택.
+    v.menu = TerminalContextMenu.build(for: v)
     let shell = ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh"
     let home = FileManager.default.homeDirectoryForCurrentUser.path
     var env = ProcessInfo.processInfo.environment

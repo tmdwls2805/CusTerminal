@@ -15,6 +15,8 @@ enum DetachedWindowController {
   static var sharedFontStore: FontStore?
   /// 배경 스토어도 공유.
   static var sharedBackgroundStore: BackgroundStore?
+  /// 구분선 스토어도 공유.
+  static var sharedSeparatorStore: SeparatorStore?
 
   static func open(session: TerminalSession) {
     let layout = LayoutStore(columns: [TerminalColumn(sessions: [session])])
@@ -29,6 +31,8 @@ enum DetachedWindowController {
     sharedFontStore = fontStore
     let backgroundStore = sharedBackgroundStore ?? BackgroundStore()
     sharedBackgroundStore = backgroundStore
+    let separatorStore = sharedSeparatorStore ?? SeparatorStore()
+    sharedSeparatorStore = separatorStore
     let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 520),
                           styleMask: [.titled, .closable, .miniaturizable, .resizable],
                           backing: .buffered, defer: false)
@@ -41,6 +45,7 @@ enum DetachedWindowController {
       .environment(customStore)
       .environment(fontStore)
       .environment(backgroundStore)
+      .environment(separatorStore)
       .environment(\.currentLayoutStore, layout)
     window.contentViewController = NSHostingController(rootView: root)
 

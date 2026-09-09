@@ -7,6 +7,7 @@ struct ContentView: View {
   @State private var customThemeStore = CustomThemeStore()
   @State private var fontStore = FontStore()
   @State private var backgroundStore = BackgroundStore()
+  @State private var separatorStore = SeparatorStore()
   @StateObject private var layout = LayoutStore()
   @State private var showLayoutPrompt: Bool = false
   @State private var sidebarVisible: Bool = true
@@ -36,6 +37,7 @@ struct ContentView: View {
     .environment(customThemeStore)
     .environment(fontStore)
     .environment(backgroundStore)
+    .environment(separatorStore)
     .environment(\.currentLayoutStore, layout)
     .onAppear {
       themeStore.customStore = customThemeStore
@@ -44,6 +46,7 @@ struct ContentView: View {
       DetachedWindowController.sharedCustomStore = customThemeStore
       DetachedWindowController.sharedFontStore = fontStore
       DetachedWindowController.sharedBackgroundStore = backgroundStore
+      DetachedWindowController.sharedSeparatorStore = separatorStore
       let args = CommandLine.arguments
       if let idx = args.firstIndex(of: "--layout"), idx + 1 < args.count {
         applyLayout(spec: args[idx + 1])

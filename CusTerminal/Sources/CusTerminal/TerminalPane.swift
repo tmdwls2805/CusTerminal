@@ -62,6 +62,24 @@ final class TerminalHolder: ObservableObject {
     view.send(data: Array(text.utf8)[...])
   }
 
+  /// 셸을 거치지 않고 화면 버퍼에 텍스트 직접 쓰기 (구분선용).
+  /// - 셸이 알지 못하므로 명령 이력에도 안 남고, prompt 갱신도 안 시킴.
+  func feedToScreen(_ text: String) {
+    guard let view else { return }
+    view.getTerminal().feed(text: text)
+  }
+
+  /// 구분선 zsh hook 적용/해제. 세션 시작 후 아무 때나 호출 가능.
+  /// - initial=true 면 화면을 clear 로 지워서 등록 스크립트/앞선 구분선 자국을 감춤.
+  func applySeparator(_ sep: SeparatorStore, initial: Bool = false) {
+    var script = sep.enabled ? sep.zshHookScript() : sep.zshHookDisableScript()
+    if initial {
+      // 개행 없는 명령 → 마지막에 clear 추가.
+      script = String(script.dropLast()) + " && clear\n"
+    }
+    send(text: script)
+  }
+
   /// 테마 색상을 즉시 적용.
   /// - transparent: 배경 이미지가 있을 때 SwiftTerm 자체 배경을 완전 투명으로 만들어 뒤 이미지를 보임.
   func applyTheme(_ theme: TerminalTheme, transparent: Bool = false) {
@@ -92,10 +110,16 @@ struct TerminalPane: View {
   @Environment(ThemeStore.self) private var themeStore
   @Environment(FontStore.self) private var fontStore
   @Environment(BackgroundStore.self) private var backgroundStore
+  @Environment(SeparatorStore.self) private var sepStore
 
   private var currentTheme: TerminalTheme { themeStore.themeFor(session: session) }
   private var currentFont: TerminalFontChoice { fontStore.fontFor(session: session) }
   private var currentBackground: BackgroundChoice { backgroundStore.backgroundFor(session: session) }
+
+  /// SeparatorStore 의 관찰할 필드들을 한 문자열로 → 변경 감지용.
+  private var sepFingerprint: String {
+    "\(sepStore.enabled)|\(sepStore.startChar)|\(sepStore.endChar)|\(sepStore.startLabel)|\(sepStore.endLabel)|\(sepStore.padCount)"
+  }
 
   var body: some View {
     ZStack {
@@ -113,9 +137,12 @@ struct TerminalPane: View {
                    session: session,
                    themeStore: themeStore,
                    fontStore: fontStore,
+                   sepStore: sepStore,
                    theme: currentTheme,
                    font: currentFont,
-                   backgroundVisible: !currentBackground.isEmpty)
+                   backgroundVisible: !currentBackground.isEmpty,
+                   // hook 상태를 트리거하는 값 (변경되면 updateNSView 재호출).
+                   sepFingerprint: sepFingerprint)
     }
     .onDrop(of: [UTType.plainText, UTType.utf8PlainText, UTType.fileURL], isTargeted: nil) { providers in
       // 이미지 파일 드롭 → 세션 배경으로 설정.
@@ -133,12 +160,15 @@ struct TerminalPane: View {
         }
         return true
       }
-      // 텍스트(카드) 드롭 → 명령 실행 (기존 동작).
+      // 텍스트(카드) 드롭 → 원본 명령만 셸에 send.
+      // 구분선은 zsh preexec/precmd hook 이 자동으로 감싸주므로 여기서 감쌀 필요 없음.
       guard let provider = providers.first else { return false }
       _ = provider.loadObject(ofClass: NSString.self) { item, _ in
         guard let text = item as? String else { return }
+        let command = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !command.isEmpty else { return }
         DispatchQueue.main.async {
-          session.holder.send(text: text + "\n")
+          session.holder.send(text: command + "\n")
         }
       }
       return true
@@ -150,6 +180,17 @@ struct TerminalPane: View {
     return exts.contains(url.pathExtension.lowercased())
   }
 }
+
+/// 여러 라인을 각각 별개 명령으로 셸에 send. 각 라인 사이에 짧은 delay.
+private func sendLinesSequentially(_ lines: [String], to session: TerminalSession, index: Int = 0) {
+  guard index < lines.count else { return }
+  let line = lines[index]
+  session.holder.send(text: line + "\n")
+  DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
+    sendLinesSequentially(lines, to: session, index: index + 1)
+  }
+}
+
 
 /// 배경 이미지를 fit 모드에 따라 그린다.
 private struct BackgroundImageView: NSViewRepresentable {
@@ -183,21 +224,39 @@ struct TerminalHost: NSViewRepresentable {
   let session: TerminalSession
   let themeStore: ThemeStore
   let fontStore: FontStore
+  let sepStore: SeparatorStore
   let theme: TerminalTheme
   let font: TerminalFontChoice
-  /// 배경 이미지가 뒤에 있으면 SwiftTerm 배경을 투명하게.
   let backgroundVisible: Bool
+  /// 값이 바뀌면 SwiftUI 가 updateNSView 를 호출해 hook 재적용.
+  let sepFingerprint: String
 
   func makeNSView(context: Context) -> LocalProcessTerminalView {
     let v = holder.makeIfNeeded()
     TerminalContextMenu.attach(to: v, session: session, themeStore: themeStore, fontStore: fontStore)
     holder.applyTheme(theme, transparent: backgroundVisible)
     holder.applyFont(font)
+    // 셸 초기화(cd ~ && clear) 뒤 hook 적용 + 화면 클리어.
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+      holder.applySeparator(sepStore, initial: true)
+      context.coordinator.lastFingerprint = sepFingerprint
+    }
     return v
   }
 
   func updateNSView(_ nsView: LocalProcessTerminalView, context: Context) {
     holder.applyTheme(theme, transparent: backgroundVisible)
     holder.applyFont(font)
+    // 설정 바뀌면 hook 재등록.
+    if context.coordinator.lastFingerprint != sepFingerprint {
+      context.coordinator.lastFingerprint = sepFingerprint
+      holder.applySeparator(sepStore)
+    }
+  }
+
+  func makeCoordinator() -> Coordinator { Coordinator() }
+
+  final class Coordinator {
+    var lastFingerprint: String = ""
   }
 }

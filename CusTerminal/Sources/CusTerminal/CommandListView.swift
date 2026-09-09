@@ -29,11 +29,12 @@ struct CommandListView: View {
 
       Spacer(minLength: 0)
 
-      // 하단: 테마 · 폰트 · 배경 진입 버튼.
+      // 하단: 테마 · 폰트 · 배경 · 구분선 진입 버튼.
       VStack(spacing: 6) {
         ThemePickerButton()
         FontPickerButton()
         BackgroundPickerButton()
+        SeparatorPickerButton()
       }
       .padding(.horizontal)
       .padding(.bottom, 8)

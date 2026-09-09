@@ -13,6 +13,7 @@ CusTerminal/custom-themes.json
 CusTerminal/font.json
 CusTerminal/background.json
 CusTerminal/backgrounds/
+CusTerminal/separator.json
 
 # 릴리즈 zip 산출물
 dist/

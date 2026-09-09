@@ -79,9 +79,11 @@ struct PaneDragHandle: NSViewRepresentable {
   func makeNSView(context: Context) -> DragSourceView {
     let v = DragSourceView()
     v.sessionID = sessionID
+    v.toolTip = "드래그해서 다른 pane 의 상/하/좌/우 로 이동"
     let icon = NSImageView(image: NSImage(systemSymbolName: "line.3.horizontal", accessibilityDescription: "pane 이동")!)
     icon.contentTintColor = .secondaryLabelColor
     icon.translatesAutoresizingMaskIntoConstraints = false
+    icon.toolTip = v.toolTip
     v.addSubview(icon)
     NSLayoutConstraint.activate([
       icon.centerXAnchor.constraint(equalTo: v.centerXAnchor),

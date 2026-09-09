@@ -3,6 +3,7 @@ import SwiftUI
 /// 사이드바 하단 진입 버튼.
 struct SeparatorPickerButton: View {
   @Environment(SeparatorStore.self) private var sepStore
+  @Environment(DropRunStore.self) private var dropRunStore
   @State private var show: Bool = false
 
   var body: some View {
@@ -10,15 +11,29 @@ struct SeparatorPickerButton: View {
       show.toggle()
     } label: {
       HStack(spacing: 8) {
-        Image(systemName: sepStore.enabled ? "text.append" : "text.append")
-          .foregroundStyle(.secondary)
+        Image(systemName: "text.append")
+          .foregroundStyle(sepStore.enabled ? Color.accentColor : .secondary)
         VStack(alignment: .leading, spacing: 0) {
-          Text("구분선").font(.system(size: 12))
+          HStack(spacing: 4) {
+            Text("구분선").font(.system(size: 12))
+            // 켜짐/꺼짐 뱃지: 컬러로 즉시 구분되게.
+            Text(sepStore.enabled ? "ON" : "OFF")
+              .font(.system(size: 9, weight: .bold))
+              .padding(.horizontal, 4)
+              .padding(.vertical, 1)
+              .background(
+                Capsule().fill(sepStore.enabled
+                               ? Color.accentColor.opacity(0.9)
+                               : Color.gray.opacity(0.35))
+              )
+              .foregroundColor(sepStore.enabled ? .white : .primary)
+          }
           Text(sepStore.enabled
-               ? "\(sepStore.startChar) … \(sepStore.endChar)"
-               : "꺼짐")
+               ? "\(sepStore.startChar) … \(sepStore.endChar) · 드롭 \(dropRunStore.autoRun ? "자동실행" : "텍스트만")"
+               : "드롭 \(dropRunStore.autoRun ? "자동실행" : "텍스트만")")
             .font(.system(size: 10))
             .foregroundStyle(.secondary)
+            .lineLimit(1)
         }
         Spacer()
       }
@@ -34,18 +49,49 @@ struct SeparatorPickerButton: View {
     .popover(isPresented: $show, arrowEdge: .top) {
       SeparatorPickerPopover()
     }
-    .help("카드 실행 시 구분선 설정")
+    .tooltip("카드 드래그 & 드롭 동작 (텍스트만 얹기 vs 자동 실행) + 명령 앞뒤 구분선 표시 설정")
   }
 }
 
 struct SeparatorPickerPopover: View {
   @Environment(SeparatorStore.self) private var sepStore
+  @Environment(DropRunStore.self) private var dropRunStore
 
   var body: some View {
     @Bindable var s = sepStore
+    @Bindable var d = dropRunStore
     VStack(alignment: .leading, spacing: 12) {
-      Toggle("적용하기 (카드 실행 앞뒤에 구분선 삽입)", isOn: $s.enabled)
-        .font(.subheadline)
+      // 드롭 실행 방식 (구분선과 독립).
+      VStack(alignment: .leading, spacing: 4) {
+        Text("카드 드래그 & 드롭 동작")
+          .font(.system(size: 11, weight: .semibold))
+          .foregroundStyle(.secondary)
+        Toggle(isOn: $d.autoRun) {
+          Text(d.autoRun
+               ? "바로 실행 (엔터까지 자동)"
+               : "텍스트만 얹기 (엔터는 직접) — 기본")
+            .font(.subheadline)
+        }
+      }
+      .padding(10)
+      .background(RoundedRectangle(cornerRadius: 6).fill(Color(nsColor: .controlBackgroundColor)))
+
+      Divider()
+
+      // 구분선 옵션.
+      HStack(spacing: 8) {
+        Toggle("구분선 표시", isOn: $s.enabled)
+          .font(.subheadline)
+          .toggleStyle(.switch)
+        Text(s.enabled ? "ON" : "OFF")
+          .font(.system(size: 10, weight: .bold))
+          .padding(.horizontal, 6).padding(.vertical, 2)
+          .background(Capsule().fill(s.enabled
+                                     ? Color.accentColor.opacity(0.9)
+                                     : Color.gray.opacity(0.35)))
+          .foregroundColor(s.enabled ? .white : .primary)
+        Spacer()
+      }
 
       Group {
         Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 8) {

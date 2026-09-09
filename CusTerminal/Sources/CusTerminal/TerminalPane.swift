@@ -158,6 +158,7 @@ struct TerminalPane: View {
   @Environment(FontStore.self) private var fontStore
   @Environment(BackgroundStore.self) private var backgroundStore
   @Environment(SeparatorStore.self) private var sepStore
+  @Environment(DropRunStore.self) private var dropRunStore
 
   private var currentTheme: TerminalTheme { themeStore.themeFor(session: session) }
   private var currentFont: TerminalFontChoice { fontStore.fontFor(session: session) }
@@ -203,15 +204,16 @@ struct TerminalPane: View {
         }
         return true
       }
-      // 텍스트(카드) 드롭 → 출력도 캡처하도록 감싸서 send.
-      // 구분선은 zsh preexec/precmd hook 이 자동으로 감싸줌.
+      // 텍스트(카드) 드롭 → 명령 텍스트 send.
+      // autoRun 옵션에 따라 개행까지 붙여 자동 실행할지, 프롬프트에 텍스트만 얹을지 결정.
       guard let provider = providers.first else { return false }
       _ = provider.loadObject(ofClass: NSString.self) { item, _ in
         guard let text = item as? String else { return }
         let command = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !command.isEmpty else { return }
         DispatchQueue.main.async {
-          session.holder.send(text: session.history.wrapCommandCapturingOutput(command))
+          let payload = dropRunStore.autoRun ? command + "\n" : command
+          session.holder.send(text: payload)
         }
       }
       return true

@@ -108,6 +108,8 @@ final class HistoryStore: ObservableObject {
   }
 
   /// zsh 훅 스크립트: preexec 로 PRE 라인, precmd 로 POST 라인 append.
+  /// 카드 드롭 명령은 `__cust_run '<cmd>'` 로 감싸서 보내므로,
+  /// 훅에서는 실제 사용자 명령 문자열을 별도 변수로 받는다.
   /// 앱 내부 초기화 명령은 히스토리에 잡히지 않도록 필터.
   func zshAppendHookScript() -> String {
     let path = shellQuote(logURL.path)
@@ -138,23 +140,9 @@ final class HistoryStore: ObservableObject {
     return " " + script + "\n"
   }
 
-  /// 카드 드롭 실행 명령을 감쌀 때, stdout+stderr 를 base64 로 로그에 함께 기록.
-  /// 사용자에겐 원래대로 화면에 출력 + 히스토리에는 OUT 라인 추가.
-  /// 반환: 셸에 send 할 한 줄.
-  func wrapCommandCapturingOutput(_ command: String) -> String {
-    let trimmed = command.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !trimmed.isEmpty else { return "\n" }
-    let logPath = shellQuote(logURL.path)
-    // tee 로 화면과 파일에 동시 출력 → 파일 내용을 base64 로 감싸 OUT 라인 추가.
-    // 임시 파일 → base64 → 로그에 append.
-    let tmpVar = "__cust_out_$$"
-    let wrapped = """
-     __\(tmpVar)=$(mktemp -t custout) && { \(trimmed); } 2>&1 | tee "$__\(tmpVar)"; \
-    printf 'OUT\\t%s\\n' "$(base64 < "$__\(tmpVar)" | tr -d '\\n')" >> \(logPath); \
-    rm -f "$__\(tmpVar)"
-    """
-    return wrapped + "\n"
-  }
+  // 참고: 이전에 __cust_run 으로 감싸서 출력을 캡처하던 로직은 제거됨.
+  // 드롭 == 타이핑 로 통일하기 위해 TerminalPane 에서 명령 텍스트만 send.
+  // 타이핑과 동일하게 zsh preexec/precmd 훅이 히스토리를 처리한다.
 
   private func shellQuote(_ s: String) -> String {
     let escaped = s.replacingOccurrences(of: "'", with: "'\\''")

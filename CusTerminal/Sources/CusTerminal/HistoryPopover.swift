@@ -13,7 +13,7 @@ struct PaneHistoryButton: View {
         .frame(width: 18, height: 16)
     }
     .buttonStyle(.borderless)
-    .help("이 pane 의 명령 히스토리 (시간 순)")
+    .tooltip("이 pane 의 명령 히스토리 (시간 순)")
     .popover(isPresented: $show, arrowEdge: .bottom) {
       HistoryPopoverContent(session: session)
     }
@@ -163,12 +163,12 @@ private struct HistoryRow: View {
           Image(systemName: "play.fill").font(.system(size: 11))
         }
         .buttonStyle(.borderless)
-        .help("이 pane 에서 다시 실행")
+        .tooltip("이 pane 에서 다시 실행")
         Button(action: onCopy) {
           Image(systemName: "doc.on.doc").font(.system(size: 11))
         }
         .buttonStyle(.borderless)
-        .help("클립보드에 복사")
+        .tooltip("클립보드에 복사")
       }
 
       if expanded {

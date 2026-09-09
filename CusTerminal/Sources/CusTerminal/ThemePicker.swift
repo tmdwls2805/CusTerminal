@@ -58,7 +58,7 @@ struct ThemePickerButton: View {
         }
       )
     }
-    .help("테마 변경")
+    .tooltip("테마 (배경 · 글자 · 커서 · 선택 색상). 프리셋 20종 + 커스텀 편집")
   }
 }
 
@@ -135,7 +135,7 @@ struct ThemePalettePopover: View {
             .font(.caption)
         }
         .buttonStyle(.borderless)
-        .help("전역 모드 · Classic Dark 로 리셋 + 모든 pane 개별 테마 제거")
+        .tooltip("전역 모드 · Classic Dark 로 리셋 + 모든 pane 개별 테마 제거")
         Spacer()
       }
     }
@@ -157,7 +157,7 @@ struct SessionThemeButton: View {
         .frame(width: 18, height: 16)
     }
     .buttonStyle(.borderless)
-    .help("이 pane 의 테마 변경 (세션별 모드)")
+    .tooltip("이 pane 의 테마 변경 (세션별 모드)")
     .popover(isPresented: $show, arrowEdge: .bottom) {
       VStack(alignment: .leading, spacing: 10) {
         Text("이 pane 테마")

@@ -8,6 +8,7 @@ struct ContentView: View {
   @State private var fontStore = FontStore()
   @State private var backgroundStore = BackgroundStore()
   @State private var separatorStore = SeparatorStore()
+  @State private var dropRunStore = DropRunStore()
   @StateObject private var layout = LayoutStore()
   @State private var showLayoutPrompt: Bool = false
   @State private var sidebarVisible: Bool = true
@@ -38,6 +39,7 @@ struct ContentView: View {
     .environment(fontStore)
     .environment(backgroundStore)
     .environment(separatorStore)
+    .environment(dropRunStore)
     .environment(\.currentLayoutStore, layout)
     .onAppear {
       themeStore.customStore = customThemeStore
@@ -47,6 +49,7 @@ struct ContentView: View {
       DetachedWindowController.sharedFontStore = fontStore
       DetachedWindowController.sharedBackgroundStore = backgroundStore
       DetachedWindowController.sharedSeparatorStore = separatorStore
+      DetachedWindowController.sharedDropRunStore = dropRunStore
       let args = CommandLine.arguments
       if let idx = args.firstIndex(of: "--layout"), idx + 1 < args.count {
         applyLayout(spec: args[idx + 1])
@@ -156,7 +159,7 @@ private struct PaneHeader: View {
     HStack(spacing: 6) {
       PaneDragHandle(sessionID: session.id)
         .frame(width: 22, height: 18)
-        .help("드래그해서 다른 pane 의 상/하/좌/우 로 이동")
+        .tooltip("드래그해서 다른 pane 의 상/하/좌/우 로 이동")
       PaneNameLabel(session: session)
       Spacer()
       if themeStore.mode == .perPane {
@@ -199,6 +202,7 @@ private struct PaneNameLabel: View {
           .onSubmit { commit() }
           .onExitCommand { cancel() }
           .onAppear { focused = true }
+          .tooltip("Enter 저장 · Esc 취소")
       } else {
         Text(session.name.isEmpty ? "이름 없음" : session.name)
           .font(.system(size: 11, weight: .medium))
@@ -207,7 +211,7 @@ private struct PaneNameLabel: View {
           .truncationMode(.tail)
           .frame(maxWidth: 160, alignment: .leading)
           .contentShape(Rectangle())
-          .help("더블클릭해서 pane 이름 편집")
+          .tooltip("더블클릭해서 pane 이름 편집 (이 pane 을 뭐하는 창인지 표시)")
           .onTapGesture(count: 2) {
             draft = session.name
             isEditing = true
@@ -236,7 +240,7 @@ private struct HeaderButton: View {
         .frame(width: 18, height: 16)
     }
     .buttonStyle(.borderless)
-    .help(help)
+    .tooltip(help)
   }
 }
 

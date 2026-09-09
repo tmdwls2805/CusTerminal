@@ -93,18 +93,33 @@ final class ResizeHandleView: NSView {
 }
 
 /// 사이드바 접힘/펴짐 토글 버튼. 헤더에 배치.
+/// 아이콘 회전 + 크로스페이드로 부드럽게 전환.
 struct SidebarToggleButton: View {
   @Binding var visible: Bool
 
   var body: some View {
     Button {
-      withAnimation(.easeInOut(duration: 0.18)) { visible.toggle() }
+      withAnimation(.easeInOut(duration: 0.22)) { visible.toggle() }
     } label: {
-      Image(systemName: visible ? "sidebar.left" : "sidebar.leading")
-        .frame(width: 22, height: 20)
+      ZStack {
+        // 두 아이콘을 겹쳐두고 opacity/scale/rotation 으로 크로스페이드.
+        Image(systemName: "sidebar.left")
+          .opacity(visible ? 1 : 0)
+          .scaleEffect(visible ? 1 : 0.85)
+          .rotationEffect(.degrees(visible ? 0 : -15))
+        Image(systemName: "sidebar.leading")
+          .opacity(visible ? 0 : 1)
+          .scaleEffect(visible ? 0.85 : 1)
+          .rotationEffect(.degrees(visible ? 15 : 0))
+      }
+      .frame(width: 22, height: 20)
+      .animation(.spring(response: 0.35, dampingFraction: 0.75), value: visible)
+      .contentShape(Rectangle())
     }
     .buttonStyle(.borderless)
-    .help(visible ? "사이드바 숨기기" : "사이드바 보이기")
+    .tooltip(visible
+          ? "사이드바 숨기기 (자주 쓰는 명령·설정 창) — ⌘B"
+          : "사이드바 보이기 (자주 쓰는 명령·설정 창) — ⌘B")
     .keyboardShortcut("b", modifiers: .command)
   }
 }

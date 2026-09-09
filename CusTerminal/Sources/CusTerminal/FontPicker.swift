@@ -35,7 +35,7 @@ struct FontPickerButton: View {
     .popover(isPresented: $show, arrowEdge: .top) {
       FontPickerPopover()
     }
-    .help("폰트 종류 · 크기 설정")
+    .tooltip("폰트 종류와 크기. 전역 / 세션별 두 모드")
   }
 }
 
@@ -111,7 +111,7 @@ struct FontPickerPopover: View {
             .font(.caption)
         }
         .buttonStyle(.borderless)
-        .help("전역 모드 · Menlo 12pt 로 리셋 + 모든 pane 개별 폰트 제거")
+        .tooltip("전역 모드 · Menlo 12pt 로 리셋 + 모든 pane 개별 폰트 제거")
         Spacer()
       }
     }
@@ -175,7 +175,7 @@ struct SessionFontButton: View {
         .frame(width: 18, height: 16)
     }
     .buttonStyle(.borderless)
-    .help("이 pane 의 폰트 (세션별 모드)")
+    .tooltip("이 pane 의 폰트 (세션별 모드)")
     .popover(isPresented: $show, arrowEdge: .bottom) {
       SessionFontEditor(session: session)
     }

@@ -36,7 +36,7 @@ struct BackgroundPickerButton: View {
     .popover(isPresented: $show, arrowEdge: .top) {
       BackgroundPickerPopover()
     }
-    .help("배경 이미지 설정")
+    .tooltip("pane 배경 이미지. 파일 선택 or 드래그. 불투명도 / 어둡게 / 채우기 조절")
   }
 }
 
@@ -103,7 +103,7 @@ struct SessionBackgroundButton: View {
         .frame(width: 18, height: 16)
     }
     .buttonStyle(.borderless)
-    .help("이 pane 의 배경 이미지 (세션별 모드)")
+    .tooltip("이 pane 의 배경 이미지 (세션별 모드)")
     .popover(isPresented: $show, arrowEdge: .bottom) {
       VStack(alignment: .leading, spacing: 10) {
         Text("이 pane 배경").font(.headline)

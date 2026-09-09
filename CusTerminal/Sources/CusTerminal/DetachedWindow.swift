@@ -17,6 +17,8 @@ enum DetachedWindowController {
   static var sharedBackgroundStore: BackgroundStore?
   /// 구분선 스토어도 공유.
   static var sharedSeparatorStore: SeparatorStore?
+  /// 드롭 실행 옵션도 공유.
+  static var sharedDropRunStore: DropRunStore?
 
   static func open(session: TerminalSession) {
     let layout = LayoutStore(columns: [TerminalColumn(sessions: [session])])
@@ -33,6 +35,8 @@ enum DetachedWindowController {
     sharedBackgroundStore = backgroundStore
     let separatorStore = sharedSeparatorStore ?? SeparatorStore()
     sharedSeparatorStore = separatorStore
+    let dropRunStore = sharedDropRunStore ?? DropRunStore()
+    sharedDropRunStore = dropRunStore
     let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 520),
                           styleMask: [.titled, .closable, .miniaturizable, .resizable],
                           backing: .buffered, defer: false)
@@ -46,6 +50,7 @@ enum DetachedWindowController {
       .environment(fontStore)
       .environment(backgroundStore)
       .environment(separatorStore)
+      .environment(dropRunStore)
       .environment(\.currentLayoutStore, layout)
     window.contentViewController = NSHostingController(rootView: root)
 
@@ -202,7 +207,7 @@ private struct DetachedPaneChrome: View {
       HStack(spacing: 6) {
         PaneDragHandle(sessionID: session.id)
           .frame(width: 22, height: 18)
-          .help("드래그해서 다른 pane 의 상/하/좌/우 로 이동")
+          .tooltip("드래그해서 다른 pane 의 상/하/좌/우 로 이동")
         DetachedPaneNameLabel(session: session, onCommit: titleUpdater.callAsFunction)
         Spacer()
         if themeStore.mode == .perPane {
@@ -221,7 +226,7 @@ private struct DetachedPaneChrome: View {
           Image(systemName: "plus.rectangle.portrait").frame(width: 18, height: 16)
         }
         .buttonStyle(.borderless)
-        .help("세로 분할")
+        .tooltip("세로 분할")
 
         Button {
           layout.splitHorizontal(after: session.id)
@@ -229,7 +234,7 @@ private struct DetachedPaneChrome: View {
           Image(systemName: "plus.rectangle").frame(width: 18, height: 16)
         }
         .buttonStyle(.borderless)
-        .help("가로 분할")
+        .tooltip("가로 분할")
 
         Button {
           detachToNewWindow()
@@ -237,7 +242,7 @@ private struct DetachedPaneChrome: View {
           Image(systemName: "rectangle.portrait.and.arrow.right").frame(width: 18, height: 16)
         }
         .buttonStyle(.borderless)
-        .help("새 창으로 분리")
+        .tooltip("새 창으로 분리")
 
         Button {
           layout.remove(session.id)
@@ -245,7 +250,7 @@ private struct DetachedPaneChrome: View {
           Image(systemName: "xmark").frame(width: 18, height: 16)
         }
         .buttonStyle(.borderless)
-        .help("닫기")
+        .tooltip("닫기")
       }
       .font(.system(size: 11, weight: .medium))
       .padding(.horizontal, 6)
@@ -300,7 +305,7 @@ private struct DetachedPaneNameLabel: View {
           .truncationMode(.tail)
           .frame(maxWidth: 160, alignment: .leading)
           .contentShape(Rectangle())
-          .help("더블클릭해서 pane 이름 편집")
+          .tooltip("더블클릭해서 pane 이름 편집")
           .onTapGesture(count: 2) {
             draft = session.name
             isEditing = true

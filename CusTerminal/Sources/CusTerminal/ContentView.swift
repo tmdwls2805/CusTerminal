@@ -168,6 +168,7 @@ private struct PaneHeader: View {
       if backgroundStore.mode == .perPane {
         SessionBackgroundButton(session: session)
       }
+      PaneHistoryButton(session: session)
       HeaderButton(system: "plus.rectangle.portrait", help: "세로 분할 (아래에 pane 추가)", action: onSplitVertical)
       HeaderButton(system: "plus.rectangle", help: "가로 분할 (오른쪽에 새 열)", action: onSplitHorizontal)
       HeaderButton(system: "rectangle.portrait.and.arrow.right", help: "새 창으로 분리", action: onDetach)

@@ -15,12 +15,10 @@ final class TerminalColumn: Identifiable, ObservableObject {
 final class TerminalSession: Identifiable, ObservableObject, Equatable {
   let id = UUID()
   let holder = TerminalHolder()
+  let history = HistoryStore()
   @Published var name: String = ""
-  /// per-pane 모드일 때만 사용. nil 이면 전역 테마 fallback.
   @Published var themeIDOverride: String?
-  /// per-pane 모드일 때만 사용. nil 이면 전역 폰트 fallback.
   @Published var fontOverride: TerminalFontChoice?
-  /// per-pane 모드일 때만 사용. nil 이면 전역 배경 fallback.
   @Published var backgroundOverride: BackgroundChoice?
 
   static func == (lhs: TerminalSession, rhs: TerminalSession) -> Bool { lhs.id == rhs.id }
@@ -78,6 +76,11 @@ final class TerminalHolder: ObservableObject {
       script = String(script.dropLast()) + " && clear\n"
     }
     send(text: script)
+  }
+
+  /// 히스토리 preexec hook 등록 (pane 별 로그 파일 append).
+  func applyHistoryHook(_ history: HistoryStore) {
+    send(text: history.zshAppendHookScript())
   }
 
   /// 테마 색상을 즉시 적용.
@@ -160,15 +163,15 @@ struct TerminalPane: View {
         }
         return true
       }
-      // 텍스트(카드) 드롭 → 원본 명령만 셸에 send.
-      // 구분선은 zsh preexec/precmd hook 이 자동으로 감싸주므로 여기서 감쌀 필요 없음.
+      // 텍스트(카드) 드롭 → 출력도 캡처하도록 감싸서 send.
+      // 구분선은 zsh preexec/precmd hook 이 자동으로 감싸줌.
       guard let provider = providers.first else { return false }
       _ = provider.loadObject(ofClass: NSString.self) { item, _ in
         guard let text = item as? String else { return }
         let command = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !command.isEmpty else { return }
         DispatchQueue.main.async {
-          session.holder.send(text: command + "\n")
+          session.holder.send(text: session.history.wrapCommandCapturingOutput(command))
         }
       }
       return true
@@ -239,6 +242,8 @@ struct TerminalHost: NSViewRepresentable {
     // 셸 초기화(cd ~ && clear) 뒤 hook 적용 + 화면 클리어.
     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
       holder.applySeparator(sepStore, initial: true)
+      // 히스토리 hook (구분선과 별개, 독립 preexec 함수).
+      holder.applyHistoryHook(session.history)
       context.coordinator.lastFingerprint = sepFingerprint
     }
     return v

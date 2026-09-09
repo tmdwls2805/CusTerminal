@@ -214,6 +214,7 @@ private struct DetachedPaneChrome: View {
         if backgroundStore.mode == .perPane {
           SessionBackgroundButton(session: session)
         }
+        PaneHistoryButton(session: session)
         Button {
           layout.splitVertical(after: session.id)
         } label: {

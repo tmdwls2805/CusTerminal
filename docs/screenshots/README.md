@@ -9,6 +9,10 @@ This directory holds README screenshots. Add PNG files with these names when you
 - `theme-picker.png` — theme palette popover
 - `custom-theme-editor.png` — custom theme editor with color wells
 - `font-picker.png` — font family/size popover
+- `background-picker.png` — background image picker with opacity/darken sliders
+- `separator-picker.png` — separator settings popover
+- `history-popover.png` — pane history popover (rows collapsed)
+- `history-expanded.png` — pane history popover with one row expanded (CWD/exit/stdout visible)
 - `detached-window.png` — detached window with per-pane theme
 - `context-menu.png` — right-click menu (copy/paste + theme copy/paste/reset)
 

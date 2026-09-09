@@ -91,6 +91,15 @@ Two pieces:
     - If it already follows global → reset the global itself to Classic Dark + Menlo 12pt
     Also available as a bottom button in the theme/font palettes for a full reset.
 
+16. **Per-pane command history (with output).**
+    → Clock icon (🕐) in the pane header → popover with every command run in that pane, in time order.
+    Each row: timestamp, command, ✓/✗ exit code, elapsed seconds. Expand ▶ for CWD, exact exit code, and (for commands dropped from the sidebar) the actual stdout/stderr captured via `tee`. Type-typed commands only carry meta info because zsh hooks can't grab stdout after the fact.
+    Search field + rerun / copy buttons per row.
+    <p align="center">
+      <img src="docs/screenshots/history-popover.png" alt="History popover" width="480" />
+      <img src="docs/screenshots/history-expanded.png" alt="History expanded" width="480" />
+    </p>
+
 ### Download
 
 **Just want the app?** From the [Releases page](../../releases):
@@ -139,9 +148,10 @@ layout 4 3   # opens in CusTerminal instead of iTerm
 - [x] Font family / size settings
 - [x] Copy / paste appearance between panes
 - [x] Reset to defaults (per-pane or full)
-- [ ] Time-sorted command history search (`⌘R`), promote to a saved card
+- [x] Per-pane command history popover (time order, expand for CWD/exit/stdout)
+- [x] Background image (global / per-pane)
 - [ ] Scrollback text search (`⌘F`) with jump-to-match
-- [ ] Little decorations (mascots, background image/opacity)
+- [ ] Little decorations (mascots, window transparency)
 
 ### Making a release (maintainer)
 ```bash
@@ -224,6 +234,15 @@ Requires `gh` CLI. Builds → ad-hoc signs → creates DMG → uploads to GitHub
     - 이미 전역을 따르고 있으면 → 전역 자체를 Classic Dark + Menlo 12pt 로 리셋
     테마/폰트 팝오버 하단에도 "기본값으로 되돌리기" 버튼(전체 리셋용).
 
+16. **pane 별 명령 히스토리 (결과 접기/펼치기)**
+    → pane 헤더의 시계 아이콘(🕐) 클릭 → 그 pane 에서 실행한 모든 명령이 시간 순으로 뜨는 팝오버.
+    각 행: 실행 시각, 명령, ✓/✗ 종료코드, 소요 초. ▶ 화살표로 펼치면 CWD · 정확한 종료 코드 · (카드 드롭으로 실행한 경우) 실제 stdout/stderr 출력까지 스크롤로 확인 가능. 타이핑 명령은 zsh 훅으로 출력을 잡을 수 없어 메타 정보만.
+    검색 필드 + 각 행마다 재실행/복사 버튼.
+    <p align="center">
+      <img src="docs/screenshots/history-popover.png" alt="히스토리 팝오버" width="480" />
+      <img src="docs/screenshots/history-expanded.png" alt="히스토리 펼침" width="480" />
+    </p>
+
 ### 다운로드
 
 **앱만 쓰고 싶으면** [Releases 페이지](../../releases) 에서:
@@ -272,9 +291,10 @@ layout 4 3   # iTerm 대신 CusTerminal 로 열림
 - [x] 폰트 종류 / 크기 설정
 - [x] pane 간 테마 복사·붙여넣기
 - [x] 기본값으로 되돌리기
-- [ ] 명령 히스토리 시간순 검색 (`⌘R`), 자주 쓰는 건 카드로 승격
+- [x] pane 별 명령 히스토리 팝오버 (시간순 · 결과 접기/펼치기)
+- [x] 배경 이미지 (전역 / 세션별)
 - [ ] 스크롤백 텍스트 검색 (`⌘F`) + 하이라이트 점프
-- [ ] 꾸미기 (마스코트, 배경 이미지/투명도)
+- [ ] 꾸미기 (마스코트, 창 투명도)
 
 ### 릴리즈 만들기 (관리자용)
 ```bash

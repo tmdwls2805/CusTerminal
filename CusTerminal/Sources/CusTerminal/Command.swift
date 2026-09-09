@@ -15,13 +15,13 @@ final class CommandStore {
   private let fileURL: URL
 
   init() {
-    // 저장 위치는 이 소스 파일 기준 프로젝트 루트(MyTerm/) 안 commands.json.
-    // #filePath = .../MyTerm/Sources/MyTerm/Command.swift → 세 단계 위가 MyTerm/.
+    // 저장 위치는 이 소스 파일 기준 프로젝트 루트(CusTerminal/) 안 commands.json.
+    // #filePath = .../CusTerminal/Sources/CusTerminal/Command.swift → 세 단계 위가 CusTerminal/.
     let source = URL(fileURLWithPath: #filePath)
     let dir = source
-      .deletingLastPathComponent()  // Sources/MyTerm
+      .deletingLastPathComponent()  // Sources/CusTerminal
       .deletingLastPathComponent()  // Sources
-      .deletingLastPathComponent()  // MyTerm
+      .deletingLastPathComponent()  // CusTerminal
     try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
     self.fileURL = dir.appendingPathComponent("commands.json")
     load()

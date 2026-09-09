@@ -1,10 +1,13 @@
 # SwiftPM 산출물 / 캐시
-MyTerm/.build/
-MyTerm/.swiftpm/
-MyTerm/Package.resolved
+CusTerminal/.build/
+CusTerminal/.swiftpm/
+CusTerminal/Package.resolved
 
 # macOS
 .DS_Store
 
 # 사용자별 저장 커맨드 (앱이 실행 중 생성/수정)
-MyTerm/commands.json
+CusTerminal/commands.json
+
+# 릴리즈 zip 산출물
+dist/

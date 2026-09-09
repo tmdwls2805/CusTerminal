@@ -29,13 +29,13 @@ enum DetachedWindowController {
     window.makeKeyAndOrderFront(nil)
   }
 
-  /// 창 타이틀 계산: pane 1개면 그 이름, 여러개면 " · " 로 연결. 이름 다 비면 "MyTerm".
+  /// 창 타이틀 계산: pane 1개면 그 이름, 여러개면 " · " 로 연결. 이름 다 비면 "CusTerminal".
   static func titleFor(layout: LayoutStore) -> String {
     let names = layout.columns
       .flatMap(\.sessions)
       .map(\.name)
       .filter { !$0.isEmpty }
-    if names.isEmpty { return "MyTerm" }
+    if names.isEmpty { return "CusTerminal" }
     return names.joined(separator: " · ")
   }
 

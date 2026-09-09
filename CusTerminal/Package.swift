@@ -2,10 +2,10 @@
 import PackageDescription
 
 let package = Package(
-  name: "MyTerm",
+  name: "CusTerminal",
   platforms: [.macOS(.v14)],
   products: [
-    .executable(name: "MyTerm", targets: ["MyTerm"]),
+    .executable(name: "CusTerminal", targets: ["CusTerminal"]),
   ],
   dependencies: [
     // SwiftTerm — 터미널 뷰 + PTY + VT/ANSI 에뮬레이션.
@@ -13,11 +13,11 @@ let package = Package(
   ],
   targets: [
     .executableTarget(
-      name: "MyTerm",
+      name: "CusTerminal",
       dependencies: [
         .product(name: "SwiftTerm", package: "SwiftTerm"),
       ],
-      path: "Sources/MyTerm"
+      path: "Sources/CusTerminal"
     ),
   ]
 )

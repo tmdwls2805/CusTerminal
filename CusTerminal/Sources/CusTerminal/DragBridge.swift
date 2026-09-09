@@ -9,7 +9,7 @@ final class DragCoordinator {
   static let shared = DragCoordinator()
   private(set) var isDraggingPane: Bool = false
   /// 활성 상태 바뀔 때 오버레이들이 hitTest / 시각 상태 갱신하도록 브로드캐스트.
-  static let didChangeNotification = Notification.Name("MyTermDragCoordinatorDidChange")
+  static let didChangeNotification = Notification.Name("CusTerminalDragCoordinatorDidChange")
 
   func begin() {
     isDraggingPane = true

@@ -78,15 +78,18 @@ END
     ''|*[!0-9]*) echo "layout: 숫자 두 개가 필요합니다 (예: layout 4 3)"; return 1 ;;
   esac
 
-  # MYTERM_APP 환경변수(.app 번들 경로) 지정 시 자체 앱으로 띄우고 종료.
-  # 예: export MYTERM_APP="$HOME/Desktop/everyoung-code/iterm-layout/MyTerm/.build/release/MyTerm.app"
-  if [ -n "$MYTERM_APP" ] && [ -d "$MYTERM_APP" ]; then
-    open -n "$MYTERM_APP" --args --layout "${left},${right}"
+  # CUSTERMINAL_APP 환경변수(.app 번들 경로) 지정 시 자체 앱으로 띄우고 종료.
+  # 예: export CUSTERMINAL_APP="$HOME/Desktop/everyoung-code/iterm-layout/CusTerminal/.build/release/CusTerminal.app"
+  # 이전 이름(MYTERM_APP)도 하위 호환으로 인식.
+  APP_PATH="${CUSTERMINAL_APP:-$MYTERM_APP}"
+  if [ -n "$APP_PATH" ] && [ -d "$APP_PATH" ]; then
+    open -n "$APP_PATH" --args --layout "${left},${right}"
     return 0
   fi
   # Legacy: raw binary (창이 안 뜨는 경우가 있어 .app 권장).
-  if [ -n "$MYTERM_BIN" ] && [ -x "$MYTERM_BIN" ]; then
-    "$MYTERM_BIN" --layout "${left},${right}" >/dev/null 2>&1 &
+  BIN_PATH="${CUSTERMINAL_BIN:-$MYTERM_BIN}"
+  if [ -n "$BIN_PATH" ] && [ -x "$BIN_PATH" ]; then
+    "$BIN_PATH" --layout "${left},${right}" >/dev/null 2>&1 &
     return 0
   fi
 

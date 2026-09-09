@@ -238,7 +238,7 @@ struct LayoutPromptSheet: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 14) {
-      Text("MyTerm — 레이아웃")
+      Text("CusTerminal — 오늘은 어떻게 꾸며볼까?")
         .font(.headline)
 
       Picker("", selection: $mode) {

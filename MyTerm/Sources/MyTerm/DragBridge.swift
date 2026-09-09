@@ -101,10 +101,8 @@ final class PaneDropOverlay: NSView {
   var targetSessionID: UUID = UUID()
   var onDrop: ((_ sourceID: UUID, _ edge: LayoutStore.DropEdge) -> Void)?
 
-  private let topBar = NSView()
-  private let bottomBar = NSView()
-  private let leftBar = NSView()
-  private let rightBar = NSView()
+  /// IDEA 스타일: drop 위치의 절반 영역을 통짜 반투명으로 채워 "여기 이 크기로 들어감" 미리보기.
+  private let highlight = NSView()
   private var lastEdge: LayoutStore.DropEdge = .top
   private var observer: NSObjectProtocol?
 
@@ -112,12 +110,13 @@ final class PaneDropOverlay: NSView {
     super.init(frame: .zero)
     wantsLayer = true
     registerForDraggedTypes([paneMovePasteboardType])
-    for bar in [topBar, bottomBar, leftBar, rightBar] {
-      bar.wantsLayer = true
-      bar.layer?.backgroundColor = NSColor.controlAccentColor.withAlphaComponent(0.55).cgColor
-      bar.isHidden = true
-      addSubview(bar)
-    }
+    highlight.wantsLayer = true
+    highlight.layer?.backgroundColor = NSColor.controlAccentColor.withAlphaComponent(0.28).cgColor
+    highlight.layer?.borderColor = NSColor.controlAccentColor.withAlphaComponent(0.9).cgColor
+    highlight.layer?.borderWidth = 2
+    highlight.layer?.cornerRadius = 4
+    highlight.isHidden = true
+    addSubview(highlight)
     observer = NotificationCenter.default.addObserver(
       forName: DragCoordinator.didChangeNotification, object: nil, queue: .main
     ) { [weak self] _ in
@@ -132,11 +131,33 @@ final class PaneDropOverlay: NSView {
 
   override func layout() {
     super.layout()
-    let barW: CGFloat = 4
-    topBar.frame = NSRect(x: 0, y: bounds.height - barW, width: bounds.width, height: barW)
-    bottomBar.frame = NSRect(x: 0, y: 0, width: bounds.width, height: barW)
-    leftBar.frame = NSRect(x: 0, y: 0, width: barW, height: bounds.height)
-    rightBar.frame = NSRect(x: bounds.width - barW, y: 0, width: barW, height: bounds.height)
+    // hidden 이면 굳이 계산 안 함. 표시 중이면 lastEdge 로 위치 갱신.
+    if !highlight.isHidden { updateHighlightFrame(edge: lastEdge) }
+  }
+
+  /// edge 방향의 절반 영역 rect. AppKit 좌하단 원점.
+  private func rect(for edge: LayoutStore.DropEdge) -> NSRect {
+    switch edge {
+    case .top:
+      return NSRect(x: 0, y: bounds.height / 2, width: bounds.width, height: bounds.height / 2)
+    case .bottom:
+      return NSRect(x: 0, y: 0, width: bounds.width, height: bounds.height / 2)
+    case .left:
+      return NSRect(x: 0, y: 0, width: bounds.width / 2, height: bounds.height)
+    case .right:
+      return NSRect(x: bounds.width / 2, y: 0, width: bounds.width / 2, height: bounds.height)
+    }
+  }
+
+  private func updateHighlightFrame(edge: LayoutStore.DropEdge) {
+    // 살짝 안쪽으로 패딩해서 pane 경계와 겹치지 않게.
+    let r = rect(for: edge).insetBy(dx: 2, dy: 2)
+    // 부드러운 이동 애니메이션.
+    NSAnimationContext.runAnimationGroup { ctx in
+      ctx.duration = 0.12
+      ctx.allowsImplicitAnimation = true
+      highlight.animator().frame = r
+    }
   }
 
   /// 드래그 세션이 활성일 때만 오버레이가 마우스 이벤트를 받음.
@@ -161,13 +182,13 @@ final class PaneDropOverlay: NSView {
   }
 
   override func draggingExited(_ sender: NSDraggingInfo?) {
-    hideAllBars()
+    hideHighlight()
   }
 
   override func prepareForDragOperation(_ sender: NSDraggingInfo) -> Bool { true }
 
   override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
-    defer { hideAllBars() }
+    defer { hideHighlight() }
     guard let s = sender.draggingPasteboard.string(forType: paneMovePasteboardType),
           let sourceID = UUID(uuidString: s),
           sourceID != targetSessionID
@@ -182,11 +203,8 @@ final class PaneDropOverlay: NSView {
     return id != targetSessionID
   }
 
-  private func hideAllBars() {
-    topBar.isHidden = true
-    bottomBar.isHidden = true
-    leftBar.isHidden = true
-    rightBar.isHidden = true
+  private func hideHighlight() {
+    highlight.isHidden = true
   }
 
   /// 4분면(N/S/E/W) 판정: 마우스 위치를 pane 중심에서의 각도로 나눔.
@@ -202,16 +220,19 @@ final class PaneDropOverlay: NSView {
     if abs(dx) > abs(dy) {
       edge = dx < 0 ? .left : .right
     } else {
-      // dy 가 양수면 위쪽 → top
+      // dy 양수 = 위쪽 = top
       edge = dy > 0 ? .top : .bottom
     }
+
+    let edgeChanged = edge != lastEdge
     lastEdge = edge
-    hideAllBars()
-    switch edge {
-    case .top: topBar.isHidden = false
-    case .bottom: bottomBar.isHidden = false
-    case .left: leftBar.isHidden = false
-    case .right: rightBar.isHidden = false
+
+    if highlight.isHidden {
+      // 처음 등장: 애니메이션 없이 바로 위치 세팅 후 표시.
+      highlight.frame = rect(for: edge).insetBy(dx: 2, dy: 2)
+      highlight.isHidden = false
+    } else if edgeChanged {
+      updateHighlightFrame(edge: edge)
     }
   }
 }

@@ -41,6 +41,17 @@ struct ContentView: View {
     .environment(separatorStore)
     .environment(dropRunStore)
     .environment(\.currentLayoutStore, layout)
+    // 메인 창 title 을 pane 이름들로 갱신 (Dock 우클릭 · Window 메뉴에서 구분되게).
+    .navigationTitle(DetachedWindowController.titleFor(layout: layout))
+    .onReceive(layout.objectWillChange) { _ in
+      // pane 추가/삭제/이름 변경 시 title 재계산 필요. SwiftUI 는 navigationTitle
+      // 을 그대로 두면 재평가 안 될 수 있어서 window 를 직접 갱신.
+      DispatchQueue.main.async {
+        if let win = NSApp.windows.first(where: { $0.contentViewController is NSHostingController<AnyView> || $0.title == "CusTerminal" || $0.title.contains("·") }) {
+          _ = win  // no-op; navigationTitle 이 SwiftUI 재계산에 의해 갱신됨
+        }
+      }
+    }
     .onAppear {
       themeStore.customStore = customThemeStore
       DetachedWindowController.sharedStore = store

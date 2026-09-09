@@ -35,6 +35,8 @@ final class TerminalHolder: ObservableObject {
   private var lastTransparent: Bool = false
   private var lastFontName: String?
   private var lastFontSize: CGFloat = 0
+  /// 훅 재적용 판단용. 세션 lifetime 내내 유지 (Coordinator 는 창 이동 시 리셋되므로).
+  var lastSepFingerprint: String = ""
 
   func makeIfNeeded() -> LocalProcessTerminalView {
     if let view { return view }
@@ -309,27 +311,22 @@ struct TerminalHost: NSViewRepresentable {
       holder.didApplyInitialHooks = true
       DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
         holder.applyInitialHooks(separator: sepStore, history: session.history)
-        context.coordinator.lastFingerprint = sepFingerprint
+        holder.lastSepFingerprint = sepFingerprint
       }
     }
     return v
   }
 
   func updateNSView(_ nsView: LocalProcessTerminalView, context: Context) {
-    Log.write("updateNSView session=\(session.id.uuidString.prefix(4))")
     holder.applyTheme(theme, transparent: backgroundVisible)
     holder.applyFont(font)
-    // 설정 바뀌면 hook 재등록.
-    if context.coordinator.lastFingerprint != sepFingerprint {
-      Log.write("SEP FINGERPRINT CHANGED old=\(context.coordinator.lastFingerprint) new=\(sepFingerprint) → applySeparator")
-      context.coordinator.lastFingerprint = sepFingerprint
+    // 초기 훅 등록 전엔 재적용 시도 자체를 skip (초기 등록이 fingerprint 도 세팅).
+    guard holder.didApplyInitialHooks else { return }
+    // 설정 실제 변경 시에만 hook 재등록. holder 에 fingerprint 저장 →
+    // 창 이동(새 SwiftUI Coordinator 생성) 후에도 중복 재적용 방지.
+    if holder.lastSepFingerprint != sepFingerprint {
+      holder.lastSepFingerprint = sepFingerprint
       holder.applySeparator(sepStore)
     }
-  }
-
-  func makeCoordinator() -> Coordinator { Coordinator() }
-
-  final class Coordinator {
-    var lastFingerprint: String = ""
   }
 }

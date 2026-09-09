@@ -13,6 +13,8 @@ enum DetachedWindowController {
   static var sharedCustomStore: CustomThemeStore?
   /// 폰트 스토어도 공유.
   static var sharedFontStore: FontStore?
+  /// 배경 스토어도 공유.
+  static var sharedBackgroundStore: BackgroundStore?
 
   static func open(session: TerminalSession) {
     let layout = LayoutStore(columns: [TerminalColumn(sessions: [session])])
@@ -25,6 +27,8 @@ enum DetachedWindowController {
     themeStore.customStore = customStore
     let fontStore = sharedFontStore ?? FontStore()
     sharedFontStore = fontStore
+    let backgroundStore = sharedBackgroundStore ?? BackgroundStore()
+    sharedBackgroundStore = backgroundStore
     let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 520),
                           styleMask: [.titled, .closable, .miniaturizable, .resizable],
                           backing: .buffered, defer: false)
@@ -36,6 +40,7 @@ enum DetachedWindowController {
       .environment(themeStore)
       .environment(customStore)
       .environment(fontStore)
+      .environment(backgroundStore)
       .environment(\.currentLayoutStore, layout)
     window.contentViewController = NSHostingController(rootView: root)
 
@@ -185,6 +190,7 @@ private struct DetachedPaneChrome: View {
   @Environment(\.windowTitleUpdater) private var titleUpdater
   @Environment(ThemeStore.self) private var themeStore
   @Environment(FontStore.self) private var fontStore
+  @Environment(BackgroundStore.self) private var backgroundStore
 
   var body: some View {
     VStack(spacing: 0) {
@@ -199,6 +205,9 @@ private struct DetachedPaneChrome: View {
         }
         if fontStore.mode == .perPane {
           SessionFontButton(session: session)
+        }
+        if backgroundStore.mode == .perPane {
+          SessionBackgroundButton(session: session)
         }
         Button {
           layout.splitVertical(after: session.id)

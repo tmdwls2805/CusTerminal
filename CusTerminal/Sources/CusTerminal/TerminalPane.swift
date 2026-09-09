@@ -20,6 +20,8 @@ final class TerminalSession: Identifiable, ObservableObject, Equatable {
   @Published var themeIDOverride: String?
   /// per-pane 모드일 때만 사용. nil 이면 전역 폰트 fallback.
   @Published var fontOverride: TerminalFontChoice?
+  /// per-pane 모드일 때만 사용. nil 이면 전역 배경 fallback.
+  @Published var backgroundOverride: BackgroundChoice?
 
   static func == (lhs: TerminalSession, rhs: TerminalSession) -> Bool { lhs.id == rhs.id }
 }
@@ -61,12 +63,16 @@ final class TerminalHolder: ObservableObject {
   }
 
   /// 테마 색상을 즉시 적용.
-  func applyTheme(_ theme: TerminalTheme) {
+  /// - transparent: 배경 이미지가 있을 때 SwiftTerm 자체 배경을 완전 투명으로 만들어 뒤 이미지를 보임.
+  func applyTheme(_ theme: TerminalTheme, transparent: Bool = false) {
     guard let view else { return }
-    view.nativeBackgroundColor = theme.background
+    view.nativeBackgroundColor = transparent ? .clear : theme.background
     view.nativeForegroundColor = theme.foreground
     view.caretColor = theme.cursor
     view.selectedTextBackgroundColor = theme.selection
+    // 투명한 배경을 실제로 그리려면 layer/wantsLayer 도 설정 필요.
+    view.wantsLayer = true
+    view.layer?.backgroundColor = (transparent ? NSColor.clear : theme.background).cgColor
     view.needsDisplay = true
   }
 
@@ -85,28 +91,88 @@ struct TerminalPane: View {
   @ObservedObject var session: TerminalSession
   @Environment(ThemeStore.self) private var themeStore
   @Environment(FontStore.self) private var fontStore
+  @Environment(BackgroundStore.self) private var backgroundStore
 
   private var currentTheme: TerminalTheme { themeStore.themeFor(session: session) }
   private var currentFont: TerminalFontChoice { fontStore.fontFor(session: session) }
+  private var currentBackground: BackgroundChoice { backgroundStore.backgroundFor(session: session) }
 
   var body: some View {
-    TerminalHost(holder: session.holder,
-                 session: session,
-                 themeStore: themeStore,
-                 fontStore: fontStore,
-                 theme: currentTheme,
-                 font: currentFont)
-      .background(Color(nsColor: currentTheme.background))
-      .onDrop(of: [UTType.plainText, UTType.utf8PlainText], isTargeted: nil) { providers in
-        guard let provider = providers.first else { return false }
-        _ = provider.loadObject(ofClass: NSString.self) { item, _ in
-          guard let text = item as? String else { return }
+    ZStack {
+      // 최하단: 이미지 (있으면) → 그 위에 반투명 검정 오버레이 → 그 위에 터미널.
+      if !currentBackground.isEmpty,
+         let image = backgroundStore.loadImage(currentBackground.fileName) {
+        BackgroundImageView(image: image, fit: currentBackground.fit)
+          .opacity(currentBackground.opacity)
+        Color.black.opacity(currentBackground.darkenAmount)
+      } else {
+        Color(nsColor: currentTheme.background)
+      }
+
+      TerminalHost(holder: session.holder,
+                   session: session,
+                   themeStore: themeStore,
+                   fontStore: fontStore,
+                   theme: currentTheme,
+                   font: currentFont,
+                   backgroundVisible: !currentBackground.isEmpty)
+    }
+    .onDrop(of: [UTType.plainText, UTType.utf8PlainText, UTType.fileURL], isTargeted: nil) { providers in
+      // 이미지 파일 드롭 → 세션 배경으로 설정.
+      for p in providers where p.canLoadObject(ofClass: URL.self) {
+        _ = p.loadObject(ofClass: URL.self) { url, _ in
+          guard let url, isImage(url) else { return }
           DispatchQueue.main.async {
-            session.holder.send(text: text + "\n")
+            if let name = backgroundStore.importImage(from: url) {
+              var choice = currentBackground.isEmpty ? BackgroundChoice.none : currentBackground
+              choice.fileName = name
+              backgroundStore.mode = .perPane
+              session.backgroundOverride = choice
+            }
           }
         }
         return true
       }
+      // 텍스트(카드) 드롭 → 명령 실행 (기존 동작).
+      guard let provider = providers.first else { return false }
+      _ = provider.loadObject(ofClass: NSString.self) { item, _ in
+        guard let text = item as? String else { return }
+        DispatchQueue.main.async {
+          session.holder.send(text: text + "\n")
+        }
+      }
+      return true
+    }
+  }
+
+  private func isImage(_ url: URL) -> Bool {
+    let exts = ["jpg", "jpeg", "png", "heic", "gif", "bmp", "tiff", "webp"]
+    return exts.contains(url.pathExtension.lowercased())
+  }
+}
+
+/// 배경 이미지를 fit 모드에 따라 그린다.
+private struct BackgroundImageView: NSViewRepresentable {
+  let image: NSImage
+  let fit: BackgroundFit
+
+  func makeNSView(context: Context) -> NSImageView {
+    let v = NSImageView()
+    v.image = image
+    v.imageAlignment = .alignCenter
+    v.imageScaling = scaling(for: fit)
+    return v
+  }
+  func updateNSView(_ nsView: NSImageView, context: Context) {
+    nsView.image = image
+    nsView.imageScaling = scaling(for: fit)
+  }
+  private func scaling(for fit: BackgroundFit) -> NSImageScaling {
+    switch fit {
+    case .fill: return .scaleProportionallyUpOrDown  // 정확한 fill 아님 (아래 note)
+    case .fit: return .scaleProportionallyDown
+    case .stretch: return .scaleAxesIndependently
+    }
   }
 }
 
@@ -119,17 +185,19 @@ struct TerminalHost: NSViewRepresentable {
   let fontStore: FontStore
   let theme: TerminalTheme
   let font: TerminalFontChoice
+  /// 배경 이미지가 뒤에 있으면 SwiftTerm 배경을 투명하게.
+  let backgroundVisible: Bool
 
   func makeNSView(context: Context) -> LocalProcessTerminalView {
     let v = holder.makeIfNeeded()
     TerminalContextMenu.attach(to: v, session: session, themeStore: themeStore, fontStore: fontStore)
-    holder.applyTheme(theme)
+    holder.applyTheme(theme, transparent: backgroundVisible)
     holder.applyFont(font)
     return v
   }
 
   func updateNSView(_ nsView: LocalProcessTerminalView, context: Context) {
-    holder.applyTheme(theme)
+    holder.applyTheme(theme, transparent: backgroundVisible)
     holder.applyFont(font)
   }
 }

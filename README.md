@@ -10,8 +10,6 @@
   <a href="#english">English</a> · <a href="#한국어">한국어</a>
 </p>
 
-> 📸 스크린샷은 `docs/screenshots/` 밑에 자리만 잡아뒀어요. 파일 채워지면 자동으로 여기 렌더링됩니다.
-
 <!-- MAIN SCREENSHOT -->
 <p align="center">
   <img src="docs/screenshots/main-window.png" alt="Main window" width="800" />

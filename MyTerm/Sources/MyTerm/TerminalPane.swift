@@ -34,6 +34,14 @@ final class TerminalHolder: ObservableObject {
     let envArray = env.map { "\($0.key)=\($0.value)" }
     v.startProcess(executable: shell, args: ["-l"], environment: envArray, execName: nil)
     self.view = v
+    // login shell 이 .zprofile/.zshrc 를 로드하며 cd 를 걸 수 있으니,
+    // 셸 초기화가 끝난 뒤 홈으로 강제 이동 + 화면을 깔끔히 지운다.
+    // `clear` 로 앞선 `cd` 입력 흔적까지 비워서 홈에서 방금 열린 것처럼 보이게.
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+      guard let self, let v = self.view else { return }
+      let bootstrap = " cd ~ && clear\n"  // 히스토리 오염 방지 위해 앞에 공백 (HIST_IGNORE_SPACE 사용자 배려)
+      v.send(data: Array(bootstrap.utf8)[...])
+    }
     return v
   }
 

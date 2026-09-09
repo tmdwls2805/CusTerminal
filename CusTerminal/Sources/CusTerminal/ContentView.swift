@@ -5,6 +5,7 @@ struct ContentView: View {
   @State private var store = CommandStore()
   @State private var themeStore = ThemeStore()
   @State private var customThemeStore = CustomThemeStore()
+  @State private var fontStore = FontStore()
   @StateObject private var layout = LayoutStore()
   @State private var showLayoutPrompt: Bool = false
   @State private var sidebarVisible: Bool = true
@@ -32,11 +33,14 @@ struct ContentView: View {
     )
     .environment(themeStore)
     .environment(customThemeStore)
+    .environment(fontStore)
+    .environment(\.currentLayoutStore, layout)
     .onAppear {
       themeStore.customStore = customThemeStore
       DetachedWindowController.sharedStore = store
       DetachedWindowController.sharedThemeStore = themeStore
       DetachedWindowController.sharedCustomStore = customThemeStore
+      DetachedWindowController.sharedFontStore = fontStore
       let args = CommandLine.arguments
       if let idx = args.firstIndex(of: "--layout"), idx + 1 < args.count {
         applyLayout(spec: args[idx + 1])
@@ -135,6 +139,7 @@ private struct PaneChrome: View {
 private struct PaneHeader: View {
   @ObservedObject var session: TerminalSession
   @Environment(ThemeStore.self) private var themeStore
+  @Environment(FontStore.self) private var fontStore
   let onClose: () -> Void
   let onSplitVertical: () -> Void
   let onSplitHorizontal: () -> Void
@@ -149,6 +154,9 @@ private struct PaneHeader: View {
       Spacer()
       if themeStore.mode == .perPane {
         SessionThemeButton(session: session)
+      }
+      if fontStore.mode == .perPane {
+        SessionFontButton(session: session)
       }
       HeaderButton(system: "plus.rectangle.portrait", help: "세로 분할 (아래에 pane 추가)", action: onSplitVertical)
       HeaderButton(system: "plus.rectangle", help: "가로 분할 (오른쪽에 새 열)", action: onSplitHorizontal)

@@ -67,6 +67,7 @@ struct ThemePickerButton: View {
 struct ThemePalettePopover: View {
   @Environment(ThemeStore.self) private var themeStore
   @Environment(CustomThemeStore.self) private var customStore
+  @Environment(\.currentLayoutStore) private var currentLayout
   /// editing = nil 이면 새로 만들기, 있으면 편집.
   let onRequestEditor: (TerminalTheme?) -> Void
 
@@ -124,6 +125,19 @@ struct ThemePalettePopover: View {
         }
       }
       .frame(width: 400, height: 320)
+
+      Divider()
+      HStack {
+        Button {
+          store.resetToDefaults(sessions: currentLayout?.allSessions ?? [])
+        } label: {
+          Label("기본값으로 되돌리기", systemImage: "arrow.uturn.backward")
+            .font(.caption)
+        }
+        .buttonStyle(.borderless)
+        .help("전역 모드 · Classic Dark 로 리셋 + 모든 pane 개별 테마 제거")
+        Spacer()
+      }
     }
     .padding(14)
   }

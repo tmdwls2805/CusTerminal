@@ -29,10 +29,13 @@ struct CommandListView: View {
 
       Spacer(minLength: 0)
 
-      // 하단: 테마 진입 버튼.
-      ThemePickerButton()
-        .padding(.horizontal)
-        .padding(.bottom, 8)
+      // 하단: 테마 · 폰트 진입 버튼.
+      VStack(spacing: 6) {
+        ThemePickerButton()
+        FontPickerButton()
+      }
+      .padding(.horizontal)
+      .padding(.bottom, 8)
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     .background(Color(nsColor: .windowBackgroundColor))

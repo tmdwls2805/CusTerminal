@@ -18,6 +18,8 @@ final class TerminalSession: Identifiable, ObservableObject, Equatable {
   @Published var name: String = ""
   /// per-pane 모드일 때만 사용. nil 이면 전역 테마 fallback.
   @Published var themeIDOverride: String?
+  /// per-pane 모드일 때만 사용. nil 이면 전역 폰트 fallback.
+  @Published var fontOverride: TerminalFontChoice?
 
   static func == (lhs: TerminalSession, rhs: TerminalSession) -> Bool { lhs.id == rhs.id }
 }
@@ -33,8 +35,7 @@ final class TerminalHolder: ObservableObject {
     // 배경 검정 / 글자 순수 흰색으로 강제. (기본은 흐릿한 회색톤)
     v.nativeBackgroundColor = .black
     v.nativeForegroundColor = .white
-    // 우클릭 컨텍스트 메뉴: 복사 / 붙여넣기 / 모두 선택.
-    v.menu = TerminalContextMenu.build(for: v)
+    // 컨텍스트 메뉴는 세션·스토어를 아는 TerminalHost 쪽에서 attach.
     let shell = ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh"
     let home = FileManager.default.homeDirectoryForCurrentUser.path
     var env = ProcessInfo.processInfo.environment
@@ -68,6 +69,14 @@ final class TerminalHolder: ObservableObject {
     view.selectedTextBackgroundColor = theme.selection
     view.needsDisplay = true
   }
+
+  /// 폰트를 즉시 적용. 매칭되는 폰트가 없으면 시스템 모노스페이스 fallback.
+  func applyFont(_ choice: TerminalFontChoice) {
+    guard let view else { return }
+    let font = NSFont(name: choice.name, size: choice.size)
+      ?? NSFont.monospacedSystemFont(ofSize: choice.size, weight: .regular)
+    view.font = font
+  }
 }
 
 /// SwiftTerm 의 LocalProcessTerminalView 를 SwiftUI 로 감싼 뷰.
@@ -75,11 +84,18 @@ final class TerminalHolder: ObservableObject {
 struct TerminalPane: View {
   @ObservedObject var session: TerminalSession
   @Environment(ThemeStore.self) private var themeStore
+  @Environment(FontStore.self) private var fontStore
 
   private var currentTheme: TerminalTheme { themeStore.themeFor(session: session) }
+  private var currentFont: TerminalFontChoice { fontStore.fontFor(session: session) }
 
   var body: some View {
-    TerminalHost(holder: session.holder, theme: currentTheme)
+    TerminalHost(holder: session.holder,
+                 session: session,
+                 themeStore: themeStore,
+                 fontStore: fontStore,
+                 theme: currentTheme,
+                 font: currentFont)
       .background(Color(nsColor: currentTheme.background))
       .onDrop(of: [UTType.plainText, UTType.utf8PlainText], isTargeted: nil) { providers in
         guard let provider = providers.first else { return false }
@@ -98,15 +114,22 @@ struct TerminalPane: View {
 /// theme 변경 시 색상 즉시 반영.
 struct TerminalHost: NSViewRepresentable {
   let holder: TerminalHolder
+  let session: TerminalSession
+  let themeStore: ThemeStore
+  let fontStore: FontStore
   let theme: TerminalTheme
+  let font: TerminalFontChoice
 
   func makeNSView(context: Context) -> LocalProcessTerminalView {
     let v = holder.makeIfNeeded()
+    TerminalContextMenu.attach(to: v, session: session, themeStore: themeStore, fontStore: fontStore)
     holder.applyTheme(theme)
+    holder.applyFont(font)
     return v
   }
 
   func updateNSView(_ nsView: LocalProcessTerminalView, context: Context) {
     holder.applyTheme(theme)
+    holder.applyFont(font)
   }
 }

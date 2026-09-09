@@ -38,11 +38,17 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 PLIST
 
 # ad-hoc 코드 서명 (Apple 계정 불필요, 무료).
-# 이걸 안 하면 macOS Sequoia 이후 "손상되어 열 수 없습니다" 로 뜸.
-# --deep 로 번들 내부 프레임워크/dylib 까지 서명. --force 는 기존 서명 덮어씀.
-codesign --force --deep --sign - "$APP" 2>/dev/null || {
+# --identifier 를 고정해 재빌드해도 macOS 가 "같은 앱" 으로 인식 → 매번 권한 재요청 안 뜸.
+# --preserve-metadata 로 기존 entitlements 유지.
+codesign --force --deep --sign - \
+  --identifier com.silverslab.custerminal \
+  --options runtime \
+  "$APP" 2>/dev/null || {
   echo "⚠️  codesign 실패 (계속 진행)"
 }
+
+# 로컬 빌드는 원래 quarantine 없지만, 혹시 남아있으면 제거.
+xattr -cr "$APP" 2>/dev/null || true
 
 # Finder 가 아이콘 캐시를 즉시 갱신하도록 힌트.
 touch "$APP"

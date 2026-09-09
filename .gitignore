@@ -10,6 +10,7 @@ CusTerminal/Package.resolved
 CusTerminal/commands.json
 CusTerminal/theme.json
 CusTerminal/custom-themes.json
+CusTerminal/font.json
 
 # 릴리즈 zip 산출물
 dist/

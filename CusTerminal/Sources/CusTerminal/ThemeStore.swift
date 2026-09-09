@@ -39,6 +39,16 @@ final class ThemeStore {
 
   var globalTheme: TerminalTheme { ThemeCatalog.byID(globalThemeID, custom: customThemes) }
 
+  /// 전역·세션별 모든 오버라이드를 초기값으로 되돌린다.
+  /// - 전역 테마: classic-dark
+  /// - 모드: global
+  /// - 모든 세션의 개별 테마: 제거
+  func resetToDefaults(sessions: [TerminalSession]) {
+    mode = .global
+    globalThemeID = "classic-dark"
+    for s in sessions { s.themeIDOverride = nil }
+  }
+
   func themeFor(session: TerminalSession) -> TerminalTheme {
     switch mode {
     case .global: return globalTheme

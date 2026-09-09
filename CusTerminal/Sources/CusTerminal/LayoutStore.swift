@@ -16,6 +16,9 @@ final class LayoutStore: ObservableObject {
 
   // MARK: - 조회
 
+  /// 이 스토어 안 모든 세션 (평탄화).
+  var allSessions: [TerminalSession] { columns.flatMap(\.sessions) }
+
   /// 세션이 속한 (열 index, 행 index) 찾기.
   func locate(_ sessionID: UUID) -> (col: Int, row: Int)? {
     for (c, column) in columns.enumerated() {

@@ -1,0 +1,15 @@
+# Screenshots
+
+This directory holds README screenshots. Add PNG files with these names when you take them:
+
+- `main-window.png` — main window with a few panes
+- `layout-sheet.png` — initial layout dialog (uniform/custom modes)
+- `pane-drag.png` — drag preview highlight (IntelliJ-style)
+- `sidebar-commands.png` — command sidebar with cards
+- `theme-picker.png` — theme palette popover
+- `custom-theme-editor.png` — custom theme editor with color wells
+- `detached-window.png` — detached window with per-pane theme
+- `context-menu.png` — right-click copy/paste menu
+
+Recommended: 1600–2400 px wide, PNG. Windows Frame 은 macOS 창 기본 그림자 있는 채로 캡처.
+`⌘ Shift 5` 로 창 영역 캡처 (Options → Show Floating Thumbnail 끄고 그림자 포함).

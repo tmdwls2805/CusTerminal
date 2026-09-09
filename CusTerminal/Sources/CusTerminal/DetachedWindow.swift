@@ -11,6 +11,8 @@ enum DetachedWindowController {
   static var sharedThemeStore: ThemeStore?
   /// 커스텀 테마 저장소도 공유.
   static var sharedCustomStore: CustomThemeStore?
+  /// 폰트 스토어도 공유.
+  static var sharedFontStore: FontStore?
 
   static func open(session: TerminalSession) {
     let layout = LayoutStore(columns: [TerminalColumn(sessions: [session])])
@@ -21,6 +23,8 @@ enum DetachedWindowController {
     let customStore = sharedCustomStore ?? CustomThemeStore()
     sharedCustomStore = customStore
     themeStore.customStore = customStore
+    let fontStore = sharedFontStore ?? FontStore()
+    sharedFontStore = fontStore
     let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 520),
                           styleMask: [.titled, .closable, .miniaturizable, .resizable],
                           backing: .buffered, defer: false)
@@ -31,6 +35,8 @@ enum DetachedWindowController {
     let root = DetachedRootView(layout: layout, store: store, window: window)
       .environment(themeStore)
       .environment(customStore)
+      .environment(fontStore)
+      .environment(\.currentLayoutStore, layout)
     window.contentViewController = NSHostingController(rootView: root)
 
     let controller = NSWindowController(window: window)
@@ -178,6 +184,7 @@ private struct DetachedPaneChrome: View {
   @ObservedObject var session: TerminalSession
   @Environment(\.windowTitleUpdater) private var titleUpdater
   @Environment(ThemeStore.self) private var themeStore
+  @Environment(FontStore.self) private var fontStore
 
   var body: some View {
     VStack(spacing: 0) {
@@ -189,6 +196,9 @@ private struct DetachedPaneChrome: View {
         Spacer()
         if themeStore.mode == .perPane {
           SessionThemeButton(session: session)
+        }
+        if fontStore.mode == .perPane {
+          SessionFontButton(session: session)
         }
         Button {
           layout.splitVertical(after: session.id)

@@ -7,11 +7,20 @@ enum DetachedWindowController {
 
   /// 커맨드 스토어는 메인 창과 공유해야 새 창에서도 같은 카드 목록이 보인다.
   static var sharedStore: CommandStore?
+  /// 테마 스토어도 공유 → 어느 창에서 바꿔도 즉시 반영.
+  static var sharedThemeStore: ThemeStore?
+  /// 커스텀 테마 저장소도 공유.
+  static var sharedCustomStore: CustomThemeStore?
 
   static func open(session: TerminalSession) {
     let layout = LayoutStore(columns: [TerminalColumn(sessions: [session])])
     let store = sharedStore ?? CommandStore()
     sharedStore = store
+    let themeStore = sharedThemeStore ?? ThemeStore()
+    sharedThemeStore = themeStore
+    let customStore = sharedCustomStore ?? CustomThemeStore()
+    sharedCustomStore = customStore
+    themeStore.customStore = customStore
     let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 520),
                           styleMask: [.titled, .closable, .miniaturizable, .resizable],
                           backing: .buffered, defer: false)
@@ -20,6 +29,8 @@ enum DetachedWindowController {
     window.center()
 
     let root = DetachedRootView(layout: layout, store: store, window: window)
+      .environment(themeStore)
+      .environment(customStore)
     window.contentViewController = NSHostingController(rootView: root)
 
     let controller = NSWindowController(window: window)
@@ -166,6 +177,7 @@ private struct DetachedPaneChrome: View {
   @ObservedObject var layout: LayoutStore
   @ObservedObject var session: TerminalSession
   @Environment(\.windowTitleUpdater) private var titleUpdater
+  @Environment(ThemeStore.self) private var themeStore
 
   var body: some View {
     VStack(spacing: 0) {
@@ -175,6 +187,9 @@ private struct DetachedPaneChrome: View {
           .help("드래그해서 다른 pane 의 상/하/좌/우 로 이동")
         DetachedPaneNameLabel(session: session, onCommit: titleUpdater.callAsFunction)
         Spacer()
+        if themeStore.mode == .perPane {
+          SessionThemeButton(session: session)
+        }
         Button {
           layout.splitVertical(after: session.id)
         } label: {

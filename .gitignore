@@ -8,6 +8,8 @@ CusTerminal/Package.resolved
 
 # 사용자별 저장 커맨드 (앱이 실행 중 생성/수정)
 CusTerminal/commands.json
+CusTerminal/theme.json
+CusTerminal/custom-themes.json
 
 # 릴리즈 zip 산출물
 dist/

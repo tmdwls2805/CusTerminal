@@ -11,11 +11,13 @@ final class TerminalColumn: Identifiable, ObservableObject {
 }
 
 /// 세션은 참조 타입: pane 이 옮겨다녀도 같은 PTY 를 재사용하도록 holder 를 여기서 소유.
-/// 이름(`name`)도 세션에 붙어서 pane 이동/새 창 분리해도 따라감.
+/// 이름/테마도 세션에 붙어서 pane 이동/새 창 분리해도 따라감.
 final class TerminalSession: Identifiable, ObservableObject, Equatable {
   let id = UUID()
   let holder = TerminalHolder()
   @Published var name: String = ""
+  /// per-pane 모드일 때만 사용. nil 이면 전역 테마 fallback.
+  @Published var themeIDOverride: String?
 
   static func == (lhs: TerminalSession, rhs: TerminalSession) -> Bool { lhs.id == rhs.id }
 }
@@ -56,16 +58,29 @@ final class TerminalHolder: ObservableObject {
     guard let view else { return }
     view.send(data: Array(text.utf8)[...])
   }
+
+  /// 테마 색상을 즉시 적용.
+  func applyTheme(_ theme: TerminalTheme) {
+    guard let view else { return }
+    view.nativeBackgroundColor = theme.background
+    view.nativeForegroundColor = theme.foreground
+    view.caretColor = theme.cursor
+    view.selectedTextBackgroundColor = theme.selection
+    view.needsDisplay = true
+  }
 }
 
 /// SwiftTerm 의 LocalProcessTerminalView 를 SwiftUI 로 감싼 뷰.
 /// 텍스트 드롭 → 그 문자열 + \n 을 세션에 write.
 struct TerminalPane: View {
   @ObservedObject var session: TerminalSession
+  @Environment(ThemeStore.self) private var themeStore
+
+  private var currentTheme: TerminalTheme { themeStore.themeFor(session: session) }
 
   var body: some View {
-    TerminalHost(holder: session.holder)
-      .background(Color.black)
+    TerminalHost(holder: session.holder, theme: currentTheme)
+      .background(Color(nsColor: currentTheme.background))
       .onDrop(of: [UTType.plainText, UTType.utf8PlainText], isTargeted: nil) { providers in
         guard let provider = providers.first else { return false }
         _ = provider.loadObject(ofClass: NSString.self) { item, _ in
@@ -80,12 +95,18 @@ struct TerminalPane: View {
 }
 
 /// NSViewRepresentable: holder 가 캐시한 NSView 를 그대로 사용해 PTY 를 유지한다.
+/// theme 변경 시 색상 즉시 반영.
 struct TerminalHost: NSViewRepresentable {
   let holder: TerminalHolder
+  let theme: TerminalTheme
 
   func makeNSView(context: Context) -> LocalProcessTerminalView {
-    holder.makeIfNeeded()
+    let v = holder.makeIfNeeded()
+    holder.applyTheme(theme)
+    return v
   }
 
-  func updateNSView(_ nsView: LocalProcessTerminalView, context: Context) {}
+  func updateNSView(_ nsView: LocalProcessTerminalView, context: Context) {
+    holder.applyTheme(theme)
+  }
 }

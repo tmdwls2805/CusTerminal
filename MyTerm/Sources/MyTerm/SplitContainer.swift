@@ -58,10 +58,7 @@ struct SplitContainer: NSViewRepresentable {
       }
 
       var newHosts: [UUID: NSHostingController<AnyView>] = [:]
-      let n = max(1, items.count)
-      let total = isVerticalTotal(split: split)
-      let each = total / CGFloat(n)
-      for (i, item) in items.enumerated() {
+      for item in items {
         let host: NSHostingController<AnyView>
         if let existing = hosts[item.id] {
           existing.rootView = item.view
@@ -72,37 +69,59 @@ struct SplitContainer: NSViewRepresentable {
         newHosts[item.id] = host
         host.view.translatesAutoresizingMaskIntoConstraints = true
         host.view.autoresizingMask = [.width, .height]
-        // 균등 초기 크기.
-        if split.isVertical {
-          host.view.frame = NSRect(x: CGFloat(i) * each, y: 0, width: each, height: split.bounds.height)
-        } else {
-          host.view.frame = NSRect(x: 0, y: CGFloat(i) * each, width: split.bounds.width, height: each)
-        }
         split.addArrangedSubview(host.view)
       }
       hosts = newHosts
+      // bounds 가 확정된 다음 프레임 균등 분배. makeNSView 시점엔 bounds=0 이라
+      // 나중에 layout 이 잡힐 때 다시 균등화되도록 한 번 더 예약.
+      distributeEvenly(split: split)
+      DispatchQueue.main.async { [weak split] in
+        guard let split else { return }
+        self.distributeEvenly(split: split)
+      }
+    }
+
+    /// arrangedSubviews 를 완전히 균등 크기로 강제.
+    private func distributeEvenly(split: NSSplitView) {
+      let subs = split.arrangedSubviews
+      guard !subs.isEmpty else { return }
+      let dividerThickness = split.dividerThickness
+      let total = split.isVertical ? split.bounds.width : split.bounds.height
+      guard total > 0 else { return }
+      let usable = max(0, total - dividerThickness * CGFloat(subs.count - 1))
+      let each = usable / CGFloat(subs.count)
+      for (i, sub) in subs.enumerated() {
+        if split.isVertical {
+          sub.frame = NSRect(
+            x: CGFloat(i) * (each + dividerThickness),
+            y: 0,
+            width: each,
+            height: split.bounds.height
+          )
+        } else {
+          // NSSplitView 는 상하 분할이라도 좌표계가 좌하단 원점.
+          // 위→아래 순서로 배치되게 하려면 첫 subview 가 y 가 큰 위쪽에.
+          let y = split.bounds.height - CGFloat(i + 1) * each - CGFloat(i) * dividerThickness
+          sub.frame = NSRect(
+            x: 0,
+            y: y,
+            width: split.bounds.width,
+            height: each
+          )
+        }
+      }
       split.adjustSubviews()
     }
 
-    private func isVerticalTotal(split: NSSplitView) -> CGFloat {
-      let bounds = split.bounds
-      return split.isVertical ? max(bounds.width, 1) : max(bounds.height, 1)
-    }
-
-    // MARK: - NSSplitViewDelegate: 크기 제약을 명시해줘야 divider 가 자유롭게 움직임.
+    // MARK: - NSSplitViewDelegate
 
     func splitView(_ splitView: NSSplitView, constrainMinCoordinate proposedMinimumPosition: CGFloat, ofSubviewAt dividerIndex: Int) -> CGFloat {
-      // 각 pane 최소 60px 확보.
       return proposedMinimumPosition + 60
     }
 
     func splitView(_ splitView: NSSplitView, constrainMaxCoordinate proposedMaximumPosition: CGFloat, ofSubviewAt dividerIndex: Int) -> CGFloat {
       return proposedMaximumPosition - 60
     }
-
-    func splitView(_ splitView: NSSplitView, resizeSubviewsWithOldSize oldSize: NSSize) {
-      // 기본 균등 리사이즈 사용.
-      splitView.adjustSubviews()
-    }
+    // resizeSubviews 는 오버라이드 안 함 → 창 리사이즈 시 기존 비율 유지 (NSSplitView 기본 동작).
   }
 }

@@ -5,7 +5,6 @@ struct ContentView: View {
   @State private var store = CommandStore()
   @StateObject private var layout = LayoutStore()
   @State private var showLayoutPrompt: Bool = false
-  @State private var layoutInput: String = "1"
 
   var body: some View {
     HStack(spacing: 0) {
@@ -18,7 +17,6 @@ struct ContentView: View {
         .background(Color.black)
     }
     .onAppear {
-      // 새 창에서도 동일한 저장 커맨드 목록 공유.
       DetachedWindowController.sharedStore = store
       let args = CommandLine.arguments
       if let idx = args.firstIndex(of: "--layout"), idx + 1 < args.count {
@@ -28,20 +26,20 @@ struct ContentView: View {
       }
     }
     .sheet(isPresented: $showLayoutPrompt) {
-      LayoutPromptSheet(
-        spec: $layoutInput,
-        onSubmit: {
-          applyLayout(spec: layoutInput)
-          showLayoutPrompt = false
-        }
-      )
+      LayoutPromptSheet { columnSizes in
+        applyLayout(columnSizes: columnSizes)
+        showLayoutPrompt = false
+      }
     }
   }
 
   private func applyLayout(spec: String) {
     let parts = spec.split(separator: ",").compactMap { Int($0) }
-    let counts = parts.isEmpty ? [1] : parts
-    layout.columns = counts.map { count in
+    applyLayout(columnSizes: parts.isEmpty ? [1] : parts)
+  }
+
+  private func applyLayout(columnSizes: [Int]) {
+    layout.columns = columnSizes.map { count in
       TerminalColumn(sessions: (0..<max(1, count)).map { _ in TerminalSession() })
     }
   }
@@ -156,47 +154,161 @@ private struct HeaderButton: View {
 }
 
 /// 앱 시작 시 뜨는 레이아웃 입력 시트.
-/// - `1` = 창 하나 · `4` = 세로 4개 · `4,3` = 4행+3행 · `3,3,2` = 3열
+/// - 균등 모드: 가로/세로 각각 stepper 로 지정 → 모든 열이 같은 pane 수
+/// - 개별 모드: 각 열마다 세로 pane 수를 따로 지정 (불균형 배치)
 struct LayoutPromptSheet: View {
-  @Binding var spec: String
-  let onSubmit: () -> Void
+  /// 최종 레이아웃을 [열별 pane 수] 배열로 넘겨줌.
+  let onSubmit: ([Int]) -> Void
+
+  @State private var mode: Mode = .uniform
+  @State private var horizontalCount: Int = 1
+  @State private var verticalCount: Int = 1
+  /// 개별 모드에서 각 열의 pane 수. mode 전환 시 uniform 값으로 초기화됨.
+  @State private var perColumn: [Int] = [1]
+
+  enum Mode: String, CaseIterable, Identifiable {
+    case uniform = "균등"
+    case custom = "개별 지정"
+    var id: String { rawValue }
+  }
+
+  private var columnSizes: [Int] {
+    switch mode {
+    case .uniform: return Array(repeating: verticalCount, count: horizontalCount)
+    case .custom: return perColumn
+    }
+  }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 16) {
+    VStack(alignment: .leading, spacing: 14) {
       Text("MyTerm — 레이아웃")
         .font(.headline)
 
-      VStack(alignment: .leading, spacing: 4) {
-        Text("열마다 세로 분할 수를 콤마로 입력하세요.")
-          .font(.subheadline)
-        Text("예: 1 = 창 하나 · 4 = 세로 4개 · 4,3 = 4행+3행 · 3,3,2 = 3열")
-          .font(.caption)
-          .foregroundStyle(.secondary)
+      Picker("", selection: $mode) {
+        ForEach(Mode.allCases) { m in Text(m.rawValue).tag(m) }
       }
+      .pickerStyle(.segmented)
+      .labelsHidden()
 
-      HStack(spacing: 8) {
-        TextField("예: 1  또는  4,3", text: $spec)
-          .textFieldStyle(.roundedBorder)
-          .onSubmit(onSubmit)
-
-        Menu("프리셋") {
-          Button("창 하나 (1)") { spec = "1"; onSubmit() }
-          Button("세로 2 (2)") { spec = "2"; onSubmit() }
-          Button("가로 2 (1,1)") { spec = "1,1"; onSubmit() }
-          Button("2 x 2 (2,2)") { spec = "2,2"; onSubmit() }
-          Button("4 x 3 (4,3)") { spec = "4,3"; onSubmit() }
-          Button("3 x 3 (3,3)") { spec = "3,3"; onSubmit() }
+      Group {
+        switch mode {
+        case .uniform: uniformControls
+        case .custom: customControls
         }
-        .fixedSize()
       }
+
+      LayoutPreview(columnSizes: columnSizes)
+        .frame(height: 100)
+
+      Text("총 \(columnSizes.reduce(0, +)) 개 pane · \(columnSizes.count) 열")
+        .font(.caption)
+        .foregroundStyle(.secondary)
 
       HStack {
+        Button("하나만 생성") { onSubmit([1]) }
         Spacer()
-        Button("생성", action: onSubmit)
+        Button("생성") { onSubmit(columnSizes) }
           .keyboardShortcut(.defaultAction)
       }
     }
     .padding(20)
     .frame(width: 420)
+    .onChange(of: mode) { _, new in
+      // 균등 → 개별 전환 시 현재 균등 값으로 열별 배열 채움.
+      if new == .custom {
+        perColumn = Array(repeating: verticalCount, count: horizontalCount)
+      } else {
+        // 개별 → 균등 전환 시 열 수만 유지.
+        horizontalCount = max(1, perColumn.count)
+      }
+    }
+  }
+
+  private var uniformControls: some View {
+    Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 8) {
+      GridRow {
+        Text("가로 (열 수)")
+        Stepper(value: $horizontalCount, in: 1...10) {
+          Text("\(horizontalCount)").frame(minWidth: 24, alignment: .trailing).monospacedDigit()
+        }
+      }
+      GridRow {
+        Text("세로 (각 열 pane 수)")
+        Stepper(value: $verticalCount, in: 1...10) {
+          Text("\(verticalCount)").frame(minWidth: 24, alignment: .trailing).monospacedDigit()
+        }
+      }
+    }
+  }
+
+  private var customControls: some View {
+    VStack(alignment: .leading, spacing: 8) {
+      HStack {
+        Text("열 개수: \(perColumn.count)")
+          .font(.subheadline)
+        Spacer()
+        Button {
+          if perColumn.count > 1 { perColumn.removeLast() }
+        } label: {
+          Image(systemName: "minus")
+        }
+        .disabled(perColumn.count <= 1)
+        Button {
+          if perColumn.count < 10 { perColumn.append(1) }
+        } label: {
+          Image(systemName: "plus")
+        }
+        .disabled(perColumn.count >= 10)
+      }
+
+      // 각 열별 stepper 목록.
+      ScrollView {
+        VStack(spacing: 6) {
+          ForEach(perColumn.indices, id: \.self) { i in
+            HStack {
+              Text("열 \(i + 1)")
+                .font(.system(.body, design: .monospaced))
+                .frame(width: 46, alignment: .leading)
+              Stepper(value: Binding(
+                get: { perColumn[i] },
+                set: { perColumn[i] = $0 }
+              ), in: 1...10) {
+                Text("세로 \(perColumn[i]) 개")
+                  .monospacedDigit()
+              }
+            }
+          }
+        }
+      }
+      .frame(maxHeight: 130)
+    }
+  }
+}
+
+/// [열별 pane 수] 배열을 작은 사각형 그리드로 시각화 (불균형 지원).
+private struct LayoutPreview: View {
+  let columnSizes: [Int]
+
+  var body: some View {
+    GeometryReader { geo in
+      let gap: CGFloat = 3
+      let cols = max(1, columnSizes.count)
+      let cellW = (geo.size.width - gap * CGFloat(cols - 1)) / CGFloat(cols)
+      HStack(spacing: gap) {
+        ForEach(columnSizes.indices, id: \.self) { i in
+          let n = max(1, columnSizes[i])
+          let cellH = (geo.size.height - gap * CGFloat(n - 1)) / CGFloat(n)
+          VStack(spacing: gap) {
+            ForEach(0..<n, id: \.self) { _ in
+              RoundedRectangle(cornerRadius: 3)
+                .fill(Color.accentColor.opacity(0.25))
+                .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.accentColor.opacity(0.7), lineWidth: 1))
+                .frame(width: cellW, height: cellH)
+            }
+          }
+        }
+      }
+      .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
+    }
   }
 }

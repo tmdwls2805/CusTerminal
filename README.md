@@ -76,6 +76,21 @@ Two pieces:
     → Startup sheet with a uniform mode (H × V steppers) and a custom mode (per-column pane count). Live preview grid + "single pane" shortcut.
     <p align="center"><img src="docs/screenshots/layout-sheet.png" alt="Layout sheet" width="440" /></p>
 
+13. **Font family & size.**
+    → Font button below the theme button in the sidebar. Curated developer monospace fonts (SF Mono, Menlo, JetBrains Mono, Fira Code, D2Coding …) + any monospaced font installed on the system.
+    Direct numeric input for size (6–72pt) + stepper. Per-font live preview. Global / per-pane modes, just like themes.
+    <p align="center"><img src="docs/screenshots/font-picker.png" alt="Font picker" width="440" /></p>
+
+14. **Copy / paste appearance between panes.**
+    → Right-click inside a terminal → **"Copy theme"** stashes the pane's background/foreground/cursor/selection colors + font family & size into an in-app clipboard.
+    Right-click another pane → **"Paste theme (Nord · Menlo 14pt)"** applies the whole look to that pane only. Auto-switches theme/font mode to per-pane so other panes aren't affected.
+
+15. **Reset to defaults.**
+    → **"Reset this pane to defaults"** in the right-click menu:
+    - If this pane has its own theme/font override → just clear the override (this pane follows global again)
+    - If it already follows global → reset the global itself to Classic Dark + Menlo 12pt
+    Also available as a bottom button in the theme/font palettes for a full reset.
+
 ### Download
 
 **Just want the app?** From the [Releases page](../../releases):
@@ -121,7 +136,9 @@ layout 4 3   # opens in CusTerminal instead of iTerm
 - [x] Command sidebar with drag-to-run
 - [x] Theme system (20 presets + custom)
 - [x] Right-click copy / paste
-- [ ] Font family / size settings
+- [x] Font family / size settings
+- [x] Copy / paste appearance between panes
+- [x] Reset to defaults (per-pane or full)
 - [ ] Time-sorted command history search (`⌘R`), promote to a saved card
 - [ ] Scrollback text search (`⌘F`) with jump-to-match
 - [ ] Little decorations (mascots, background image/opacity)
@@ -192,6 +209,21 @@ Requires `gh` CLI. Builds → ad-hoc signs → creates DMG → uploads to GitHub
     → 시작 시트에서 균등 모드 (가로 × 세로 stepper) 와 개별 모드 (열마다 pane 수 지정) 선택. 실시간 미리보기 그리드 + "하나만 생성" 버튼.
     <p align="center"><img src="docs/screenshots/layout-sheet.png" alt="레이아웃 시트" width="440" /></p>
 
+13. **폰트 종류 · 크기**
+    → 사이드바 하단, 테마 버튼 아래에 폰트 버튼. 개발자 모노스페이스 폰트 큐레이션(SF Mono, Menlo, JetBrains Mono, Fira Code, D2Coding 등) + 시스템에 설치된 모노스페이스 폰트 자동 감지.
+    크기는 직접 숫자 입력(6~72pt) + Stepper 병행. 폰트별 실시간 미리보기. 테마와 동일하게 **전역 / 세션별** 두 모드.
+    <p align="center"><img src="docs/screenshots/font-picker.png" alt="폰트 팝오버" width="440" /></p>
+
+14. **pane 사이 테마 복사/붙여넣기**
+    → 터미널 안 우클릭 → **"테마 복사"** 로 그 pane 의 배경/글씨/커서/선택 색 + 폰트 종류/크기가 앱 내 클립보드에 통째로 저장.
+    다른 pane 우클릭 → **"테마 붙여넣기 (Nord · Menlo 14pt)"** 클릭하면 그 pane 에만 적용. 자동으로 테마·폰트 모드가 세션별로 전환되어 다른 pane 은 영향 없음.
+
+15. **기본값으로 되돌리기**
+    → 우클릭 → **"이 pane 기본값으로 되돌리기"**:
+    - 이 pane 이 개별 오버라이드를 가지고 있으면 → 그것만 지움 (전역을 다시 따라감)
+    - 이미 전역을 따르고 있으면 → 전역 자체를 Classic Dark + Menlo 12pt 로 리셋
+    테마/폰트 팝오버 하단에도 "기본값으로 되돌리기" 버튼(전체 리셋용).
+
 ### 다운로드
 
 **앱만 쓰고 싶으면** [Releases 페이지](../../releases) 에서:
@@ -237,7 +269,9 @@ layout 4 3   # iTerm 대신 CusTerminal 로 열림
 - [x] 커맨드 사이드바 + 드래그 실행
 - [x] 테마 시스템 (프리셋 20종 + 커스텀)
 - [x] 우클릭 복사 / 붙여넣기
-- [ ] 폰트 종류 / 크기 설정
+- [x] 폰트 종류 / 크기 설정
+- [x] pane 간 테마 복사·붙여넣기
+- [x] 기본값으로 되돌리기
 - [ ] 명령 히스토리 시간순 검색 (`⌘R`), 자주 쓰는 건 카드로 승격
 - [ ] 스크롤백 텍스트 검색 (`⌘F`) + 하이라이트 점프
 - [ ] 꾸미기 (마스코트, 배경 이미지/투명도)

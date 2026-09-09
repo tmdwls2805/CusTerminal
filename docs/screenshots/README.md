@@ -8,8 +8,9 @@ This directory holds README screenshots. Add PNG files with these names when you
 - `sidebar-commands.png` — command sidebar with cards
 - `theme-picker.png` — theme palette popover
 - `custom-theme-editor.png` — custom theme editor with color wells
+- `font-picker.png` — font family/size popover
 - `detached-window.png` — detached window with per-pane theme
-- `context-menu.png` — right-click copy/paste menu
+- `context-menu.png` — right-click menu (copy/paste + theme copy/paste/reset)
 
 Recommended: 1600–2400 px wide, PNG. Windows Frame 은 macOS 창 기본 그림자 있는 채로 캡처.
 `⌘ Shift 5` 로 창 영역 캡처 (Options → Show Floating Thumbnail 끄고 그림자 포함).

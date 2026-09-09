@@ -100,9 +100,31 @@ CusTerminal 창 **왼쪽 사이드바** = 커맨드 저장소.
   <img src="../docs/screenshots/custom-theme-editor.png" alt="Custom theme editor" width="480" />
 </p>
 
-### 우클릭 메뉴
+### 폰트 (종류 · 크기)
 
-터미널 위 우클릭 → **복사** / **붙여넣기** / **모두 선택**. `⌘C` / `⌘V` / `⌘A` 도 됨.
+사이드바 하단, 테마 버튼 아래 **폰트 버튼** → 팝오버:
+
+- **개발자 모노스페이스 큐레이션**: SF Mono, Menlo, Monaco, JetBrains Mono, Fira Code, Fira Mono, Cascadia Code, Source Code Pro, IBM Plex Mono, Hack, Iosevka, D2Coding, NanumGothicCoding 등 설치된 것만 자동 노출. 그 뒤에 시스템의 다른 monospaced 폰트도 자동 감지.
+- **크기**: 직접 숫자 입력 (6~72pt, 범위 자동 clamp) + Stepper 병행. Enter/포커스 해제로 확정.
+- **실시간 미리보기**: 검정 배경 + 흰 프롬프트 예시.
+- **전역 / 세션별** 두 모드 (테마와 동일). 세션별 모드에서는 pane 헤더에 폰트 버튼도 추가로 나타남.
+- 하단 "**기본값으로 되돌리기**" 버튼: 전역 모드 + Menlo 12pt + 모든 pane 개별 폰트 제거.
+
+저장 파일: `CusTerminal/font.json` (`.gitignore` 처리).
+
+<p align="center"><img src="../docs/screenshots/font-picker.png" alt="Font picker" width="440" /></p>
+
+### 우클릭 메뉴 (터미널 안)
+
+터미널 위 우클릭 → 한 메뉴에 모두:
+
+- **복사** (`⌘C`) / **붙여넣기** (`⌘V`) / **모두 선택** (`⌘A`)
+- **테마 복사** — 배경/글씨/커서/선택 색 + 폰트 종류·크기를 앱 내 클립보드로 저장
+- **테마 붙여넣기 (Nord · Menlo 14pt)** — 라벨에 저장된 스타일 이름 표시. 다른 pane 에 붙여넣으면 그 pane 에만 적용 (자동으로 테마·폰트 모드가 세션별로 전환).
+- **복사한 테마 지우기** — 클립보드 비움
+- **이 pane 기본값으로 되돌리기**:
+  - 이 pane 이 개별 오버라이드를 가지면 → 그것만 제거 (전역을 다시 따라감)
+  - 이미 전역을 따르고 있으면 → 전역 자체를 Classic Dark + Menlo 12pt 로 리셋
 
 <p align="center"><img src="../docs/screenshots/context-menu.png" alt="Right-click menu" width="360" /></p>
 
@@ -110,7 +132,9 @@ CusTerminal 창 **왼쪽 사이드바** = 커맨드 저장소.
 
 - [x] 테마 시스템 (프리셋 + 커스텀)
 - [x] 우클릭 컨텍스트 메뉴
-- [ ] 폰트 종류 / 크기 설정
+- [x] 폰트 종류 / 크기 설정
+- [x] pane 사이 테마 복사/붙여넣기
+- [x] 기본값으로 되돌리기
 - [ ] 명령 히스토리 시간순 검색 (`⌘R`) + 카드로 승격
 - [ ] 스크롤백 텍스트 검색 (`⌘F`) + 하이라이트 점프
 - [ ] 꾸미기 요소 (마스코트, 배경 이미지/투명도)
@@ -134,4 +158,7 @@ CusTerminal 창 **왼쪽 사이드바** = 커맨드 저장소.
   - `CustomThemeStore.swift` — 사용자 커스텀 테마 저장
   - `ThemePicker.swift` — 팔레트 팝오버 + 커스텀 편집기
   - `ColorWell.swift` — NSColorWell 브릿지
-  - `TerminalContextMenu.swift` — 우클릭 복사/붙여넣기/모두 선택
+  - `FontStore.swift` / `FontPicker.swift` — 폰트 종류/크기 + 전역/세션별 팝오버
+  - `AppearanceClipboard.swift` — pane 사이 테마·폰트 복사 클립보드
+  - `EnvKeys.swift` — 현재 창의 LayoutStore 참조를 위한 환경값
+  - `TerminalContextMenu.swift` — 터미널 우클릭 통합 메뉴 (편집 + 테마 복사/붙여넣기/되돌리기)

@@ -12,20 +12,31 @@ enum DetachedWindowController {
     let layout = LayoutStore(columns: [TerminalColumn(sessions: [session])])
     let store = sharedStore ?? CommandStore()
     sharedStore = store
-    let root = DetachedRootView(layout: layout, store: store)
-    let hosting = NSHostingController(rootView: root)
-    let window = NSWindow(contentViewController: hosting)
-    window.title = "MyTerm"
-    window.setContentSize(NSSize(width: 900, height: 520))
-    window.styleMask.insert([.titled, .closable, .miniaturizable, .resizable])
+    let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 520),
+                          styleMask: [.titled, .closable, .miniaturizable, .resizable],
+                          backing: .buffered, defer: false)
+    window.title = titleFor(layout: layout)
     window.isReleasedWhenClosed = false
     window.center()
+
+    let root = DetachedRootView(layout: layout, store: store, window: window)
+    window.contentViewController = NSHostingController(rootView: root)
 
     let controller = NSWindowController(window: window)
     controllers.append(controller)
     window.delegate = WindowCleanup.shared
     controller.showWindow(nil)
     window.makeKeyAndOrderFront(nil)
+  }
+
+  /// 창 타이틀 계산: pane 1개면 그 이름, 여러개면 " · " 로 연결. 이름 다 비면 "MyTerm".
+  static func titleFor(layout: LayoutStore) -> String {
+    let names = layout.columns
+      .flatMap(\.sessions)
+      .map(\.name)
+      .filter { !$0.isEmpty }
+    if names.isEmpty { return "MyTerm" }
+    return names.joined(separator: " · ")
   }
 
   fileprivate static func remove(controller: NSWindowController) {
@@ -45,32 +56,81 @@ private final class WindowCleanup: NSObject, NSWindowDelegate {
 }
 
 /// 새 창의 root: 왼쪽에 자주 쓰는 커맨드 사이드바, 오른쪽에 pane.
+/// window 참조를 받아 세션 이름 변경 시 창 타이틀을 실시간 갱신한다.
 private struct DetachedRootView: View {
   @ObservedObject var layout: LayoutStore
   @Bindable var store: CommandStore
+  weak var window: NSWindow?
+  @State private var sidebarVisible: Bool = true
+  @State private var sidebarWidth: CGFloat = 260
 
   var body: some View {
-    HStack(spacing: 0) {
-      CommandListView(store: store)
-        .frame(width: 260)
-      Divider()
-      Group {
-        if layout.columns.isEmpty {
-          VStack {
-            Text("모든 pane 이 닫혔습니다")
-              .foregroundStyle(.secondary)
-            Text("이 창을 닫으세요 (⌘W)")
-              .font(.caption)
-              .foregroundStyle(.tertiary)
+    SidebarSplit(
+      sidebarVisible: $sidebarVisible,
+      sidebarWidth: $sidebarWidth,
+      sidebar: { CommandListView(store: store) },
+      content: {
+        VStack(spacing: 0) {
+          HStack(spacing: 4) {
+            SidebarToggleButton(visible: $sidebarVisible)
+            Spacer()
           }
-          .frame(maxWidth: .infinity, maxHeight: .infinity)
-          .background(Color.black)
-        } else {
-          DetachedLayoutContainer(layout: layout)
-            .background(Color.black)
+          .padding(.horizontal, 4)
+          .padding(.vertical, 2)
+          .background(Color(nsColor: .windowBackgroundColor).opacity(0.85))
+
+          Group {
+            if layout.columns.isEmpty {
+              VStack {
+                Text("모든 pane 이 닫혔습니다")
+                  .foregroundStyle(.secondary)
+                Text("이 창을 닫으세요 (⌘W)")
+                  .font(.caption)
+                  .foregroundStyle(.tertiary)
+              }
+              .frame(maxWidth: .infinity, maxHeight: .infinity)
+              .background(Color.black)
+            } else {
+              DetachedLayoutContainer(layout: layout)
+                .background(Color.black)
+            }
+          }
         }
       }
+    )
+    // 세션 이름/구성 변경 시 창 타이틀 재계산.
+    .onReceive(layout.objectWillChange) { _ in
+      DispatchQueue.main.async { updateTitle() }
     }
+    .onAppear { updateTitle() }
+    // 이름 변경 감지: 모든 세션의 objectWillChange 를 개별 구독하기는 번거로우니
+    // 창 활성화될 때도 한 번 더 갱신.
+    .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
+      updateTitle()
+    }
+    // pane 별 이름 변경 즉시 반영을 위해 자식들이 windowTitleUpdater 를 통해 트리거.
+    .environment(\.windowTitleUpdater, WindowTitleUpdater { updateTitle() })
+  }
+
+  private func updateTitle() {
+    window?.title = DetachedWindowController.titleFor(layout: layout)
+  }
+}
+
+/// 자식 뷰(pane 헤더의 이름 편집기)가 창 타이틀 갱신을 요청할 수 있도록 하는 환경값.
+struct WindowTitleUpdater {
+  let trigger: () -> Void
+  func callAsFunction() { trigger() }
+}
+
+private struct WindowTitleUpdaterKey: EnvironmentKey {
+  static let defaultValue = WindowTitleUpdater(trigger: {})
+}
+
+extension EnvironmentValues {
+  var windowTitleUpdater: WindowTitleUpdater {
+    get { self[WindowTitleUpdaterKey.self] }
+    set { self[WindowTitleUpdaterKey.self] = newValue }
   }
 }
 
@@ -105,6 +165,7 @@ private struct DetachedColumnView: View {
 private struct DetachedPaneChrome: View {
   @ObservedObject var layout: LayoutStore
   @ObservedObject var session: TerminalSession
+  @Environment(\.windowTitleUpdater) private var titleUpdater
 
   var body: some View {
     VStack(spacing: 0) {
@@ -112,6 +173,7 @@ private struct DetachedPaneChrome: View {
         PaneDragHandle(sessionID: session.id)
           .frame(width: 22, height: 18)
           .help("드래그해서 다른 pane 의 상/하/좌/우 로 이동")
+        DetachedPaneNameLabel(session: session, onCommit: titleUpdater.callAsFunction)
         Spacer()
         Button {
           layout.splitVertical(after: session.id)
@@ -168,5 +230,48 @@ private struct DetachedPaneChrome: View {
       layout.columns = [TerminalColumn(sessions: [TerminalSession()])]
     }
     DetachedWindowController.open(session: detached)
+  }
+}
+
+/// 새 창용 pane 이름 라벨. 편집 완료 시 창 타이틀도 함께 갱신.
+private struct DetachedPaneNameLabel: View {
+  @ObservedObject var session: TerminalSession
+  let onCommit: () -> Void
+  @State private var isEditing: Bool = false
+  @State private var draft: String = ""
+  @FocusState private var focused: Bool
+
+  var body: some View {
+    Group {
+      if isEditing {
+        TextField("이름", text: $draft)
+          .textFieldStyle(.roundedBorder)
+          .font(.system(size: 11))
+          .frame(maxWidth: 160)
+          .focused($focused)
+          .onSubmit { commit() }
+          .onExitCommand { isEditing = false }
+          .onAppear { focused = true }
+      } else {
+        Text(session.name.isEmpty ? "이름 없음" : session.name)
+          .font(.system(size: 11, weight: .medium))
+          .foregroundStyle(session.name.isEmpty ? .tertiary : .primary)
+          .lineLimit(1)
+          .truncationMode(.tail)
+          .frame(maxWidth: 160, alignment: .leading)
+          .contentShape(Rectangle())
+          .help("더블클릭해서 pane 이름 편집")
+          .onTapGesture(count: 2) {
+            draft = session.name
+            isEditing = true
+          }
+      }
+    }
+  }
+
+  private func commit() {
+    session.name = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+    isEditing = false
+    onCommit()
   }
 }

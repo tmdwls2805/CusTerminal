@@ -11,9 +11,11 @@ final class TerminalColumn: Identifiable, ObservableObject {
 }
 
 /// 세션은 참조 타입: pane 이 옮겨다녀도 같은 PTY 를 재사용하도록 holder 를 여기서 소유.
+/// 이름(`name`)도 세션에 붙어서 pane 이동/새 창 분리해도 따라감.
 final class TerminalSession: Identifiable, ObservableObject, Equatable {
   let id = UUID()
   let holder = TerminalHolder()
+  @Published var name: String = ""
 
   static func == (lhs: TerminalSession, rhs: TerminalSession) -> Bool { lhs.id == rhs.id }
 }
@@ -26,6 +28,9 @@ final class TerminalHolder: ObservableObject {
   func makeIfNeeded() -> LocalProcessTerminalView {
     if let view { return view }
     let v = LocalProcessTerminalView(frame: .zero)
+    // 배경 검정 / 글자 순수 흰색으로 강제. (기본은 흐릿한 회색톤)
+    v.nativeBackgroundColor = .black
+    v.nativeForegroundColor = .white
     let shell = ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh"
     let home = FileManager.default.homeDirectoryForCurrentUser.path
     var env = ProcessInfo.processInfo.environment

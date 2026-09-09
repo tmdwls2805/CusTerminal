@@ -5,17 +5,29 @@ struct ContentView: View {
   @State private var store = CommandStore()
   @StateObject private var layout = LayoutStore()
   @State private var showLayoutPrompt: Bool = false
+  @State private var sidebarVisible: Bool = true
+  @State private var sidebarWidth: CGFloat = 260
 
   var body: some View {
-    HStack(spacing: 0) {
-      CommandListView(store: store)
-        .frame(width: 260)
-
-      Divider()
-
-      LayoutContainer(layout: layout)
-        .background(Color.black)
-    }
+    SidebarSplit(
+      sidebarVisible: $sidebarVisible,
+      sidebarWidth: $sidebarWidth,
+      sidebar: { CommandListView(store: store) },
+      content: {
+        VStack(spacing: 0) {
+          // 상단에 사이드바 토글 얇은 바.
+          HStack(spacing: 4) {
+            SidebarToggleButton(visible: $sidebarVisible)
+            Spacer()
+          }
+          .padding(.horizontal, 4)
+          .padding(.vertical, 2)
+          .background(Color(nsColor: .windowBackgroundColor).opacity(0.85))
+          LayoutContainer(layout: layout)
+            .background(Color.black)
+        }
+      }
+    )
     .onAppear {
       DetachedWindowController.sharedStore = store
       let args = CommandLine.arguments
@@ -85,7 +97,7 @@ private struct PaneChrome: View {
   var body: some View {
     VStack(spacing: 0) {
       PaneHeader(
-        sessionID: session.id,
+        session: session,
         onClose: { layout.remove(session.id) },
         onSplitVertical: { layout.splitVertical(after: session.id) },
         onSplitHorizontal: { layout.splitHorizontal(after: session.id) },
@@ -114,7 +126,7 @@ private struct PaneChrome: View {
 }
 
 private struct PaneHeader: View {
-  let sessionID: UUID
+  @ObservedObject var session: TerminalSession
   let onClose: () -> Void
   let onSplitVertical: () -> Void
   let onSplitHorizontal: () -> Void
@@ -122,9 +134,10 @@ private struct PaneHeader: View {
 
   var body: some View {
     HStack(spacing: 6) {
-      PaneDragHandle(sessionID: sessionID)
+      PaneDragHandle(sessionID: session.id)
         .frame(width: 22, height: 18)
         .help("드래그해서 다른 pane 의 상/하/좌/우 로 이동")
+      PaneNameLabel(session: session)
       Spacer()
       HeaderButton(system: "plus.rectangle.portrait", help: "세로 분할 (아래에 pane 추가)", action: onSplitVertical)
       HeaderButton(system: "plus.rectangle", help: "가로 분할 (오른쪽에 새 열)", action: onSplitHorizontal)
@@ -135,6 +148,50 @@ private struct PaneHeader: View {
     .padding(.horizontal, 6)
     .padding(.vertical, 3)
     .background(Color(nsColor: .windowBackgroundColor).opacity(0.85))
+  }
+}
+
+/// pane 이름 라벨. 더블클릭하면 인라인 편집 가능. Enter 저장, Esc 취소.
+private struct PaneNameLabel: View {
+  @ObservedObject var session: TerminalSession
+  @State private var isEditing: Bool = false
+  @State private var draft: String = ""
+  @FocusState private var focused: Bool
+
+  var body: some View {
+    Group {
+      if isEditing {
+        TextField("이름", text: $draft)
+          .textFieldStyle(.roundedBorder)
+          .font(.system(size: 11))
+          .frame(maxWidth: 160)
+          .focused($focused)
+          .onSubmit { commit() }
+          .onExitCommand { cancel() }
+          .onAppear { focused = true }
+      } else {
+        Text(session.name.isEmpty ? "이름 없음" : session.name)
+          .font(.system(size: 11, weight: .medium))
+          .foregroundStyle(session.name.isEmpty ? .tertiary : .primary)
+          .lineLimit(1)
+          .truncationMode(.tail)
+          .frame(maxWidth: 160, alignment: .leading)
+          .contentShape(Rectangle())
+          .help("더블클릭해서 pane 이름 편집")
+          .onTapGesture(count: 2) {
+            draft = session.name
+            isEditing = true
+          }
+      }
+    }
+  }
+
+  private func commit() {
+    session.name = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+    isEditing = false
+  }
+  private func cancel() {
+    isEditing = false
   }
 }
 

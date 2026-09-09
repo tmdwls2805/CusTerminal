@@ -29,7 +29,7 @@ struct CommandListView: View {
 
       Spacer(minLength: 0)
     }
-    .frame(minWidth: 220)
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     .background(Color(nsColor: .windowBackgroundColor))
   }
 

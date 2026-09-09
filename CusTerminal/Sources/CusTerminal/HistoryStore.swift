@@ -108,12 +108,27 @@ final class HistoryStore: ObservableObject {
   }
 
   /// zsh 훅 스크립트: preexec 로 PRE 라인, precmd 로 POST 라인 append.
+  /// 앱 내부 초기화 명령은 히스토리에 잡히지 않도록 필터.
   func zshAppendHookScript() -> String {
     let path = shellQuote(logURL.path)
     let script = """
     __cust_hist_log=\(path); \
-    __cust_hist_pre() { printf 'PRE\\t%d\\t%s\\n' "$EPOCHSECONDS" "$1" >> "$__cust_hist_log"; }; \
-    __cust_hist_post() { local __e=$?; printf 'POST\\t%d\\t%d\\t%s\\n' "$EPOCHSECONDS" "$__e" "$PWD" >> "$__cust_hist_log"; }; \
+    __cust_hist_skip() { local c=${1##[[:space:]]#}; \
+      case "$c" in \
+        source*|*__cust_*|clear|clear*|rm\\ -f*|rm*/CusTerminal-hooks/*|history|autoload*|add-zsh-hook*) return 0 ;; \
+      esac; \
+      return 1; \
+    }; \
+    __cust_hist_pre() { \
+      if __cust_hist_skip "$1"; then __cust_hist_last=''; return; fi; \
+      __cust_hist_last=$1; \
+      printf 'PRE\\t%d\\t%s\\n' "$EPOCHSECONDS" "$1" >> "$__cust_hist_log"; \
+    }; \
+    __cust_hist_post() { local __e=$?; \
+      [ -z "$__cust_hist_last" ] && return; \
+      printf 'POST\\t%d\\t%d\\t%s\\n' "$EPOCHSECONDS" "$__e" "$PWD" >> "$__cust_hist_log"; \
+      __cust_hist_last=''; \
+    }; \
     autoload -Uz add-zsh-hook 2>/dev/null; \
     add-zsh-hook -d preexec __cust_hist_pre 2>/dev/null; \
     add-zsh-hook -d precmd __cust_hist_post 2>/dev/null; \

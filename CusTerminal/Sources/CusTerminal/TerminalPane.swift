@@ -28,6 +28,13 @@ final class TerminalSession: Identifiable, ObservableObject, Equatable {
 /// 뷰(NSView) 자체를 캐시해서 SwiftUI 가 뷰를 재생성해도 같은 PTY 를 보여준다.
 final class TerminalHolder: ObservableObject {
   var view: LocalProcessTerminalView?
+  /// 훅 초기 등록이 한 번만 실행되도록 플래그.
+  var didApplyInitialHooks: Bool = false
+  /// 마지막 적용된 값 캐시 → 동일 값이면 redraw 유발하는 세팅 스킵.
+  private var lastThemeID: String?
+  private var lastTransparent: Bool = false
+  private var lastFontName: String?
+  private var lastFontSize: CGFloat = 0
 
   func makeIfNeeded() -> LocalProcessTerminalView {
     if let view { return view }
@@ -64,42 +71,79 @@ final class TerminalHolder: ObservableObject {
   /// - 셸이 알지 못하므로 명령 이력에도 안 남고, prompt 갱신도 안 시킴.
   func feedToScreen(_ text: String) {
     guard let view else { return }
+    Log.write("feedToScreen len=\(text.count) preview=\(text.prefix(30).debugDescription)")
     view.getTerminal().feed(text: text)
   }
 
-  /// 구분선 zsh hook 적용/해제. 세션 시작 후 아무 때나 호출 가능.
-  /// - initial=true 면 화면을 clear 로 지워서 등록 스크립트/앞선 구분선 자국을 감춤.
+  /// 훅 스크립트를 파일에 저장하고 셸에 source 실행.
+  /// - alsoClear=true (초기 등록): source 뒤에 clear 붙이고 앱이 스크롤백까지 지움
+  /// - alsoClear=false (재적용): 작업 중일 수 있으니 화면을 절대 건드리지 않음
+  private func sourceScript(_ script: String, alsoClear: Bool) {
+    let dir = FileManager.default.temporaryDirectory
+      .appendingPathComponent("CusTerminal-hooks", isDirectory: true)
+    try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+    let file = dir.appendingPathComponent("hook-\(UUID().uuidString).zsh")
+    try? script.write(to: file, atomically: true, encoding: .utf8)
+    let tail = alsoClear ? "; clear" : ""
+    let line = " source '\(file.path)' 2>/dev/null; rm -f '\(file.path)' 2>/dev/null\(tail)\n"
+    send(text: line)
+    // ✗ 이전에는 여기서 앱이 \e[3J\e[H\e[2J 를 feed 로 강제 주입했는데,
+    //   그 순간 셸이 이미 그린 새 프롬프트가 함께 지워져서 화면이 빈 채로 남았음.
+    //   → clear 셸 명령이 이미 화면 정리를 하므로 앱의 강제 clear 는 제거.
+  }
+
+  /// 구분선 훅 적용/해제 (설정 변경 시 재적용).
   func applySeparator(_ sep: SeparatorStore, initial: Bool = false) {
-    var script = sep.enabled ? sep.zshHookScript() : sep.zshHookDisableScript()
-    if initial {
-      // 개행 없는 명령 → 마지막에 clear 추가.
-      script = String(script.dropLast()) + " && clear\n"
-    }
-    send(text: script)
+    let script = sep.enabled ? sep.zshHookScript() : sep.zshHookDisableScript()
+    sourceScript(script, alsoClear: initial)
   }
 
-  /// 히스토리 preexec hook 등록 (pane 별 로그 파일 append).
+  /// 히스토리 preexec/precmd 훅 등록 (단독 호출용, 지금은 미사용).
   func applyHistoryHook(_ history: HistoryStore) {
-    send(text: history.zshAppendHookScript())
+    sourceScript(history.zshAppendHookScript(), alsoClear: false)
   }
 
-  /// 테마 색상을 즉시 적용.
-  /// - transparent: 배경 이미지가 있을 때 SwiftTerm 자체 배경을 완전 투명으로 만들어 뒤 이미지를 보임.
+  /// pane 첫 시작 시 구분선 + 히스토리 훅을 한 번에 등록.
+  /// 한 번의 source + clear 로 화면 흔적 최소화.
+  /// - 앞부분에 add-zsh-hook -d 로 기존 훅을 먼저 제거해서 source 자체가 훅에 안 잡히게.
+  func applyInitialHooks(separator sep: SeparatorStore, history: HistoryStore) {
+    let disable = """
+    autoload -Uz add-zsh-hook 2>/dev/null; \
+    add-zsh-hook -d preexec __cust_pre 2>/dev/null; \
+    add-zsh-hook -d precmd __cust_post 2>/dev/null; \
+    add-zsh-hook -d preexec __cust_hist_pre 2>/dev/null; \
+    add-zsh-hook -d precmd __cust_hist_post 2>/dev/null
+    """
+    let sepScript = sep.enabled ? sep.zshHookScript() : sep.zshHookDisableScript()
+    let historyScript = history.zshAppendHookScript()
+    let combined = disable
+      + "; " + sepScript.trimmingCharacters(in: .whitespacesAndNewlines)
+      + "; " + historyScript.trimmingCharacters(in: .whitespacesAndNewlines)
+    sourceScript(combined, alsoClear: true)
+  }
+
+  /// 테마 색상을 즉시 적용. 같은 값이면 skip → SwiftUI updateNSView 반복 호출 시 redraw 방지.
   func applyTheme(_ theme: TerminalTheme, transparent: Bool = false) {
     guard let view else { return }
+    if lastThemeID == theme.id && lastTransparent == transparent { return }
+    Log.write("applyTheme id=\(theme.id) transparent=\(transparent) [CHANGED]")
+    lastThemeID = theme.id
+    lastTransparent = transparent
     view.nativeBackgroundColor = transparent ? .clear : theme.background
     view.nativeForegroundColor = theme.foreground
     view.caretColor = theme.cursor
     view.selectedTextBackgroundColor = theme.selection
-    // 투명한 배경을 실제로 그리려면 layer/wantsLayer 도 설정 필요.
     view.wantsLayer = true
     view.layer?.backgroundColor = (transparent ? NSColor.clear : theme.background).cgColor
     view.needsDisplay = true
   }
 
-  /// 폰트를 즉시 적용. 매칭되는 폰트가 없으면 시스템 모노스페이스 fallback.
+  /// 폰트 적용. 같은 값이면 skip.
   func applyFont(_ choice: TerminalFontChoice) {
     guard let view else { return }
+    if lastFontName == choice.name && lastFontSize == choice.size { return }
+    lastFontName = choice.name
+    lastFontSize = choice.size
     let font = NSFont(name: choice.name, size: choice.size)
       ?? NSFont.monospacedSystemFont(ofSize: choice.size, weight: .regular)
     view.font = font
@@ -126,16 +170,13 @@ struct TerminalPane: View {
 
   var body: some View {
     ZStack {
-      // 최하단: 이미지 (있으면) → 그 위에 반투명 검정 오버레이 → 그 위에 터미널.
-      if !currentBackground.isEmpty,
-         let image = backgroundStore.loadImage(currentBackground.fileName) {
-        BackgroundImageView(image: image, fit: currentBackground.fit)
-          .opacity(currentBackground.opacity)
-        Color.black.opacity(currentBackground.darkenAmount)
-      } else {
-        Color(nsColor: currentTheme.background)
-      }
+      // 배경 색상 (항상 같은 위치, 값만 바뀜)
+      Color(nsColor: currentTheme.background)
 
+      // 배경 이미지 오버레이 (항상 있는 자리, 이미지 없으면 투명)
+      BackgroundLayer(choice: currentBackground, store: backgroundStore)
+
+      // 터미널 뷰 (identity 절대 안 바뀜)
       TerminalHost(holder: session.holder,
                    session: session,
                    themeStore: themeStore,
@@ -144,7 +185,6 @@ struct TerminalPane: View {
                    theme: currentTheme,
                    font: currentFont,
                    backgroundVisible: !currentBackground.isEmpty,
-                   // hook 상태를 트리거하는 값 (변경되면 updateNSView 재호출).
                    sepFingerprint: sepFingerprint)
     }
     .onDrop(of: [UTType.plainText, UTType.utf8PlainText, UTType.fileURL], isTargeted: nil) { providers in
@@ -195,6 +235,27 @@ private func sendLinesSequentially(_ lines: [String], to session: TerminalSessio
 }
 
 
+/// 배경 이미지 오버레이. 이미지 없으면 투명, 있으면 opacity + darken.
+/// 항상 같은 자리에 존재해서 SwiftUI 뷰 identity 유지 → 터미널 리렌더 유발 X.
+private struct BackgroundLayer: View {
+  let choice: BackgroundChoice
+  let store: BackgroundStore
+
+  var body: some View {
+    if choice.isEmpty {
+      Color.clear
+    } else if let image = store.loadImage(choice.fileName) {
+      ZStack {
+        BackgroundImageView(image: image, fit: choice.fit)
+          .opacity(choice.opacity)
+        Color.black.opacity(choice.darkenAmount)
+      }
+    } else {
+      Color.clear
+    }
+  }
+}
+
 /// 배경 이미지를 fit 모드에 따라 그린다.
 private struct BackgroundImageView: NSViewRepresentable {
   let image: NSImage
@@ -239,21 +300,26 @@ struct TerminalHost: NSViewRepresentable {
     TerminalContextMenu.attach(to: v, session: session, themeStore: themeStore, fontStore: fontStore)
     holder.applyTheme(theme, transparent: backgroundVisible)
     holder.applyFont(font)
+    Log.write("makeNSView session=\(session.id.uuidString.prefix(4)) didApply=\(holder.didApplyInitialHooks)")
     // 셸 초기화(cd ~ && clear) 뒤 hook 적용 + 화면 클리어.
-    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-      holder.applySeparator(sepStore, initial: true)
-      // 히스토리 hook (구분선과 별개, 독립 preexec 함수).
-      holder.applyHistoryHook(session.history)
-      context.coordinator.lastFingerprint = sepFingerprint
+    // 세션 lifetime 에 딱 한 번만 실행. (makeNSView 가 여러 번 호출되어도 반복 안 됨)
+    if !holder.didApplyInitialHooks {
+      holder.didApplyInitialHooks = true
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+        holder.applyInitialHooks(separator: sepStore, history: session.history)
+        context.coordinator.lastFingerprint = sepFingerprint
+      }
     }
     return v
   }
 
   func updateNSView(_ nsView: LocalProcessTerminalView, context: Context) {
+    Log.write("updateNSView session=\(session.id.uuidString.prefix(4))")
     holder.applyTheme(theme, transparent: backgroundVisible)
     holder.applyFont(font)
     // 설정 바뀌면 hook 재등록.
     if context.coordinator.lastFingerprint != sepFingerprint {
+      Log.write("SEP FINGERPRINT CHANGED old=\(context.coordinator.lastFingerprint) new=\(sepFingerprint) → applySeparator")
       context.coordinator.lastFingerprint = sepFingerprint
       holder.applySeparator(sepStore)
     }

@@ -58,6 +58,7 @@ final class SeparatorStore {
     let script = """
     __cust_start_char=\(ch1); __cust_end_char=\(ch2); \
     __cust_start_tpl=\(startTpl); __cust_end_tpl=\(endTpl); __cust_pad=\(padArg); \
+    __cust_last_cmd=''; \
     __cust_line() { local ch=$1 tpl=$2 cmd=$3 pad; \
       pad=$(printf '%.0s'"$ch" $(seq 1 "$__cust_pad")); \
       local label=${tpl//\\{cmd\\}/$cmd}; \
@@ -67,8 +68,22 @@ final class SeparatorStore {
         printf '%s %s %s\\n' "$pad" "$label" "$pad"; \
       fi; \
     }; \
-    __cust_pre() { __cust_line "$__cust_start_char" "$__cust_start_tpl" "$1"; }; \
-    __cust_post() { __cust_line "$__cust_end_char" "$__cust_end_tpl" ''; }; \
+    __cust_skip() { local c=${1##[[:space:]]#}; \
+      case "$c" in \
+        source*|*__cust_*|clear|clear*|rm\\ -f*|rm*/CusTerminal-hooks/*|history|autoload*|add-zsh-hook*) return 0 ;; \
+      esac; \
+      return 1; \
+    }; \
+    __cust_pre() { \
+      if __cust_skip "$1"; then __cust_last_cmd=''; return; fi; \
+      __cust_last_cmd=$1; \
+      __cust_line "$__cust_start_char" "$__cust_start_tpl" "$1"; \
+    }; \
+    __cust_post() { \
+      [ -z "$__cust_last_cmd" ] && return; \
+      __cust_line "$__cust_end_char" "$__cust_end_tpl" ''; \
+      __cust_last_cmd=''; \
+    }; \
     autoload -Uz add-zsh-hook 2>/dev/null; \
     add-zsh-hook -d preexec __cust_pre 2>/dev/null; \
     add-zsh-hook -d precmd __cust_post 2>/dev/null; \

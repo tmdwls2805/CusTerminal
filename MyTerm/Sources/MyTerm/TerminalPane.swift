@@ -3,31 +3,60 @@ import AppKit
 import SwiftTerm
 import UniformTypeIdentifiers
 
-struct TerminalColumn: Identifiable {
+/// 컬럼 = 세로로 쌓인 pane 들.
+final class TerminalColumn: Identifiable, ObservableObject {
   let id = UUID()
-  var sessions: [TerminalSession]
+  @Published var sessions: [TerminalSession]
+  init(sessions: [TerminalSession]) { self.sessions = sessions }
 }
 
-struct TerminalSession: Identifiable {
+/// 세션은 참조 타입: pane 이 옮겨다녀도 같은 PTY 를 재사용하도록 holder 를 여기서 소유.
+final class TerminalSession: Identifiable, ObservableObject, Equatable {
   let id = UUID()
+  let holder = TerminalHolder()
+
+  static func == (lhs: TerminalSession, rhs: TerminalSession) -> Bool { lhs.id == rhs.id }
+}
+
+/// LocalProcessTerminalView 참조를 유지해 send 를 호출할 수 있게 한다.
+/// 뷰(NSView) 자체를 캐시해서 SwiftUI 가 뷰를 재생성해도 같은 PTY 를 보여준다.
+final class TerminalHolder: ObservableObject {
+  var view: LocalProcessTerminalView?
+
+  func makeIfNeeded() -> LocalProcessTerminalView {
+    if let view { return view }
+    let v = LocalProcessTerminalView(frame: .zero)
+    let shell = ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh"
+    let home = FileManager.default.homeDirectoryForCurrentUser.path
+    var env = ProcessInfo.processInfo.environment
+    env["HOME"] = home
+    env["PWD"] = home
+    let envArray = env.map { "\($0.key)=\($0.value)" }
+    v.startProcess(executable: shell, args: ["-l"], environment: envArray, execName: nil)
+    self.view = v
+    return v
+  }
+
+  func send(text: String) {
+    guard let view else { return }
+    view.send(data: Array(text.utf8)[...])
+  }
 }
 
 /// SwiftTerm 의 LocalProcessTerminalView 를 SwiftUI 로 감싼 뷰.
-/// PTY 로 zsh 를 붙여 실제 터미널로 동작하고,
-/// 텍스트 드롭을 받으면 그 문자열 + \n 을 세션에 write → 즉시 실행.
+/// 텍스트 드롭 → 그 문자열 + \n 을 세션에 write.
 struct TerminalPane: View {
-  @Binding var session: TerminalSession
-  @State private var termHolder = TerminalHolder()
+  @ObservedObject var session: TerminalSession
 
   var body: some View {
-    TerminalHost(holder: termHolder)
+    TerminalHost(holder: session.holder)
       .background(Color.black)
       .onDrop(of: [UTType.plainText, UTType.utf8PlainText], isTargeted: nil) { providers in
         guard let provider = providers.first else { return false }
         _ = provider.loadObject(ofClass: NSString.self) { item, _ in
           guard let text = item as? String else { return }
           DispatchQueue.main.async {
-            termHolder.send(text: text + "\n")
+            session.holder.send(text: text + "\n")
           }
         }
         return true
@@ -35,39 +64,12 @@ struct TerminalPane: View {
   }
 }
 
-/// LocalProcessTerminalView 참조를 유지해 send 를 호출할 수 있게 한다.
-final class TerminalHolder: ObservableObject {
-  var view: LocalProcessTerminalView?
-
-  func send(text: String) {
-    guard let view else { return }
-    let bytes = Array(text.utf8)
-    // SwiftTerm 의 send API: [UInt8] slice 를 PTY 에 씀.
-    view.send(data: bytes[...])
-  }
-}
-
-/// NSViewRepresentable 로 실제 터미널 뷰 붙이기.
+/// NSViewRepresentable: holder 가 캐시한 NSView 를 그대로 사용해 PTY 를 유지한다.
 struct TerminalHost: NSViewRepresentable {
   let holder: TerminalHolder
 
   func makeNSView(context: Context) -> LocalProcessTerminalView {
-    let view = LocalProcessTerminalView(frame: .zero)
-    let shell = ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh"
-    let home = FileManager.default.homeDirectoryForCurrentUser.path
-    // 셸이 홈 디렉터리에서 시작하도록 HOME/PWD 환경변수 명시 + login shell.
-    var env = ProcessInfo.processInfo.environment
-    env["HOME"] = home
-    env["PWD"] = home
-    let envArray = env.map { "\($0.key)=\($0.value)" }
-    view.startProcess(
-      executable: shell,
-      args: ["-l"],
-      environment: envArray,
-      execName: nil
-    )
-    holder.view = view
-    return view
+    holder.makeIfNeeded()
   }
 
   func updateNSView(_ nsView: LocalProcessTerminalView, context: Context) {}

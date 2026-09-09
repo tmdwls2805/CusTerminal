@@ -7,6 +7,6 @@ struct MyTermApp: App {
       ContentView()
         .frame(minWidth: 720, minHeight: 480)
     }
-    .windowStyle(.hiddenTitleBar)
+    // 새 창(detached window)과 동일한 룩 앤 필: 상단 "MyTerm" 타이틀바 표시.
   }
 }

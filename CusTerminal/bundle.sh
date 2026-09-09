@@ -37,6 +37,13 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 </plist>
 PLIST
 
+# ad-hoc 코드 서명 (Apple 계정 불필요, 무료).
+# 이걸 안 하면 macOS Sequoia 이후 "손상되어 열 수 없습니다" 로 뜸.
+# --deep 로 번들 내부 프레임워크/dylib 까지 서명. --force 는 기존 서명 덮어씀.
+codesign --force --deep --sign - "$APP" 2>/dev/null || {
+  echo "⚠️  codesign 실패 (계속 진행)"
+}
+
 # Finder 가 아이콘 캐시를 즉시 갱신하도록 힌트.
 touch "$APP"
 echo "번들 생성 완료: $(pwd)/$APP"

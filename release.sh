@@ -78,17 +78,53 @@ NOTES_FILE="$(mktemp)"
 cat > "$NOTES_FILE" <<EOF
 ## CusTerminal ${TAG}
 
-터미널을 내 취향에 맞게 커스텀. 이름부터가 그렇다.
+**Cus**tom Ter**minal**. The name says it all. / 터미널을 내 취향에 맞게 커스텀. 이름부터가 그렇다.
 
-### 다운로드 & 설치
+---
+
+### 🇺🇸 English
+
+#### Download & Install
+1. Download \`CusTerminal-${TAG}.dmg\` below
+2. Open the DMG → drag \`CusTerminal.app\` into the \`Applications\` folder
+3. **First launch**: right-click the app → **Open** (unsigned app, only the first time)
+
+If macOS says the app is "damaged":
+\`\`\`bash
+xattr -dr com.apple.quarantine /Applications/CusTerminal.app
+\`\`\`
+
+#### Requirements
+- macOS 14+
+
+#### Features in this build
+- Split panes (horizontal/vertical/custom, evenly distributed)
+- Drag panes to top/bottom/left/right (freely mix rows and columns)
+- Resize by dragging the divider
+- Detach a pane into a new window (PTY session preserved)
+- Rename each pane (double-click label, reflected in detached window title)
+- Save frequently-used commands in the sidebar, drag onto a pane to run
+- Resize or fully hide the sidebar (⌘B)
+- Right-click inside the terminal → Copy / Paste / Select All
+
+---
+
+### 🇰🇷 한국어
+
+#### 다운로드 & 설치
 1. 아래 \`CusTerminal-${TAG}.dmg\` 다운로드
-2. DMG 파일 더블클릭 → 열리는 창에서 \`CusTerminal.app\` 을 \`Applications\` 폴더로 드래그
-3. **처음 실행 시**: Launchpad 나 Finder 에서 앱 우클릭 → \`열기\` (macOS 서명 안 된 앱이라 첫 실행만 이렇게)
+2. DMG 더블클릭 → 열리는 창에서 \`CusTerminal.app\` 을 \`Applications\` 폴더로 드래그
+3. **처음 실행 시**: Launchpad 나 Finder 에서 앱 우클릭 → **열기** (서명 안 된 앱이라 첫 실행만 이렇게)
 
-### 요구사항
+앱이 "손상되어 열 수 없습니다" 로 뜨면:
+\`\`\`bash
+xattr -dr com.apple.quarantine /Applications/CusTerminal.app
+\`\`\`
+
+#### 요구사항
 - macOS 14 이상
 
-### 이번 버전 특징
+#### 이번 버전 특징
 - pane 분할 (가로/세로/개별 지정, 균등 배치)
 - pane 드래그로 상/하/좌/우 재배치 (세로 ↔ 가로 자유 전환)
 - pane 사이 divider 리사이즈

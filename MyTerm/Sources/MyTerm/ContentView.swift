@@ -79,7 +79,7 @@ private struct ColumnView: View {
   }
 }
 
-/// pane 헤더(제거/분할/새창) + 실제 터미널.
+/// pane 헤더(드래그/제거/분할/새창) + 실제 터미널 + 드롭 오버레이.
 private struct PaneChrome: View {
   @ObservedObject var layout: LayoutStore
   @ObservedObject var session: TerminalSession
@@ -87,17 +87,25 @@ private struct PaneChrome: View {
   var body: some View {
     VStack(spacing: 0) {
       PaneHeader(
+        sessionID: session.id,
         onClose: { layout.remove(session.id) },
         onSplitVertical: { layout.splitVertical(after: session.id) },
         onSplitHorizontal: { layout.splitHorizontal(after: session.id) },
         onDetach: { detachToNewWindow() }
       )
-      TerminalPane(session: session)
+      ZStack {
+        TerminalPane(session: session)
+        // 드래그 세션 중일 때만 hitTest 통과 → 평소엔 터미널이 정상 동작.
+        PaneDropTarget(targetSessionID: session.id) { sourceID, edge in
+          DispatchQueue.main.async {
+            layout.move(source: sourceID, target: session.id, edge: edge)
+          }
+        }
+      }
     }
   }
 
   private func detachToNewWindow() {
-    // 원본 창의 마지막 pane 이면 빈 창으로 남지 않도록 자리에 새 pane 을 하나 채운다.
     let wasLast = layout.columns.count == 1 && layout.columns.first?.sessions.count == 1
     guard let detached = layout.detach(session.id) else { return }
     if wasLast {
@@ -108,6 +116,7 @@ private struct PaneChrome: View {
 }
 
 private struct PaneHeader: View {
+  let sessionID: UUID
   let onClose: () -> Void
   let onSplitVertical: () -> Void
   let onSplitHorizontal: () -> Void
@@ -115,6 +124,9 @@ private struct PaneHeader: View {
 
   var body: some View {
     HStack(spacing: 6) {
+      PaneDragHandle(sessionID: sessionID)
+        .frame(width: 22, height: 18)
+        .help("드래그해서 다른 pane 의 상/하/좌/우 로 이동")
       Spacer()
       HeaderButton(system: "plus.rectangle.portrait", help: "세로 분할 (아래에 pane 추가)", action: onSplitVertical)
       HeaderButton(system: "plus.rectangle", help: "가로 분할 (오른쪽에 새 열)", action: onSplitHorizontal)

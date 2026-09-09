@@ -51,30 +51,48 @@ final class LayoutStore: ObservableObject {
     objectWillChange.send()
   }
 
-  /// source pane 을 target pane 이 있는 열의 target 자리 앞/뒤로 옮김.
-  /// - dropBefore: true 면 target 위, false 면 아래로 삽입.
-  func move(source sourceID: UUID, target targetID: UUID, dropBefore: Bool) {
+  /// 드롭 위치 (target pane 기준 어느 쪽에 놓았는지).
+  enum DropEdge {
+    case top     // 같은 열 안에서 target 위
+    case bottom  // 같은 열 안에서 target 아래
+    case left    // target 열 왼쪽에 새 열
+    case right   // target 열 오른쪽에 새 열
+  }
+
+  /// source pane 을 target pane 기준 4방향(top/bottom/left/right)으로 옮김.
+  /// - top/bottom: target 이 있는 열에 삽입 → 세로 정렬
+  /// - left/right: target 열의 옆에 단일 pane 짜리 새 열 → 가로 정렬
+  func move(source sourceID: UUID, target targetID: UUID, edge: DropEdge) {
     guard sourceID != targetID,
           let src = locate(sourceID),
           let dst = locate(targetID)
     else { return }
-    let session = columns[src.col].sessions.remove(at: src.row)
 
-    // 재계산 필요: 위 remove 로 dst 인덱스가 밀렸을 수 있음.
-    // 같은 열에서 src 가 dst 보다 앞이면 dst.row -= 1.
-    var dstRow = dst.row
+    // source 를 먼저 떼어냄.
+    let session = columns[src.col].sessions.remove(at: src.row)
     var dstCol = dst.col
+    var dstRow = dst.row
+
+    // remove 로 인해 target 인덱스가 밀렸는지 보정.
     if src.col == dst.col && src.row < dst.row {
       dstRow -= 1
     }
-    // src 열이 dst 열보다 앞이었고 src 열이 비어서 제거됐다면 dstCol -= 1.
-    if columns[src.col].sessions.isEmpty {
+    let srcColRemoved = columns[src.col].sessions.isEmpty
+    if srcColRemoved {
       columns.remove(at: src.col)
       if src.col < dstCol { dstCol -= 1 }
     }
 
-    let insertAt = dropBefore ? dstRow : dstRow + 1
-    columns[dstCol].sessions.insert(session, at: min(insertAt, columns[dstCol].sessions.count))
+    switch edge {
+    case .top:
+      columns[dstCol].sessions.insert(session, at: dstRow)
+    case .bottom:
+      columns[dstCol].sessions.insert(session, at: dstRow + 1)
+    case .left:
+      columns.insert(TerminalColumn(sessions: [session]), at: dstCol)
+    case .right:
+      columns.insert(TerminalColumn(sessions: [session]), at: dstCol + 1)
+    }
     objectWillChange.send()
   }
 

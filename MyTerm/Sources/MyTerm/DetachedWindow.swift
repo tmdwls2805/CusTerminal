@@ -109,6 +109,9 @@ private struct DetachedPaneChrome: View {
   var body: some View {
     VStack(spacing: 0) {
       HStack(spacing: 6) {
+        PaneDragHandle(sessionID: session.id)
+          .frame(width: 22, height: 18)
+          .help("드래그해서 다른 pane 의 상/하/좌/우 로 이동")
         Spacer()
         Button {
           layout.splitVertical(after: session.id)
@@ -147,12 +150,18 @@ private struct DetachedPaneChrome: View {
       .padding(.vertical, 3)
       .background(Color(nsColor: .windowBackgroundColor).opacity(0.85))
 
-      TerminalPane(session: session)
+      ZStack {
+        TerminalPane(session: session)
+        PaneDropTarget(targetSessionID: session.id) { sourceID, edge in
+          DispatchQueue.main.async {
+            layout.move(source: sourceID, target: session.id, edge: edge)
+          }
+        }
+      }
     }
   }
 
   private func detachToNewWindow() {
-    // 이 창의 마지막 pane 이면 자리에 새 pane 을 하나 채워서 창이 비지 않게.
     let wasLast = layout.columns.count == 1 && layout.columns.first?.sessions.count == 1
     guard let detached = layout.detach(session.id) else { return }
     if wasLast {

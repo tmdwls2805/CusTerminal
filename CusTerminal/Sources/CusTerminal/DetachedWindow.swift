@@ -19,6 +19,8 @@ enum DetachedWindowController {
   static var sharedSeparatorStore: SeparatorStore?
   /// 드롭 실행 옵션도 공유.
   static var sharedDropRunStore: DropRunStore?
+  /// 펫 스토어도 공유.
+  static var sharedPetStore: PetStore?
 
   static func open(session: TerminalSession) {
     let layout = LayoutStore(columns: [TerminalColumn(sessions: [session])])
@@ -37,6 +39,8 @@ enum DetachedWindowController {
     sharedSeparatorStore = separatorStore
     let dropRunStore = sharedDropRunStore ?? DropRunStore()
     sharedDropRunStore = dropRunStore
+    let petStore = sharedPetStore ?? PetStore()
+    sharedPetStore = petStore
     let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 520),
                           styleMask: [.titled, .closable, .miniaturizable, .resizable],
                           backing: .buffered, defer: false)
@@ -51,6 +55,7 @@ enum DetachedWindowController {
       .environment(backgroundStore)
       .environment(separatorStore)
       .environment(dropRunStore)
+      .environment(petStore)
       .environment(\.currentLayoutStore, layout)
     window.contentViewController = NSHostingController(rootView: root)
 

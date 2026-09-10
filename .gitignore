@@ -15,6 +15,7 @@ CusTerminal/background.json
 CusTerminal/backgrounds/
 CusTerminal/separator.json
 CusTerminal/drop-run.json
+CusTerminal/pet.json
 
 # 릴리즈 zip 산출물
 dist/

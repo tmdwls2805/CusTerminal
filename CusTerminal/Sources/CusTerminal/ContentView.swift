@@ -9,6 +9,7 @@ struct ContentView: View {
   @State private var backgroundStore = BackgroundStore()
   @State private var separatorStore = SeparatorStore()
   @State private var dropRunStore = DropRunStore()
+  @State private var petStore = PetStore()
   @StateObject private var layout = LayoutStore()
   @State private var showLayoutPrompt: Bool = false
   @State private var sidebarVisible: Bool = true
@@ -29,8 +30,12 @@ struct ContentView: View {
           .padding(.horizontal, 4)
           .padding(.vertical, 2)
           .background(Color(nsColor: .windowBackgroundColor).opacity(0.85))
-          LayoutContainer(layout: layout)
-            .background(Color.black)
+          ZStack {
+            LayoutContainer(layout: layout)
+              .background(Color.black)
+            // 창 위 픽셀 펫 오버레이 (하단 걸어다님).
+            PetOverlay()
+          }
         }
       }
     )
@@ -40,6 +45,7 @@ struct ContentView: View {
     .environment(backgroundStore)
     .environment(separatorStore)
     .environment(dropRunStore)
+    .environment(petStore)
     .environment(\.currentLayoutStore, layout)
     // 메인 창 title 을 pane 이름들로 갱신 (Dock 우클릭 · Window 메뉴에서 구분되게).
     .navigationTitle(DetachedWindowController.titleFor(layout: layout))
@@ -61,6 +67,7 @@ struct ContentView: View {
       DetachedWindowController.sharedBackgroundStore = backgroundStore
       DetachedWindowController.sharedSeparatorStore = separatorStore
       DetachedWindowController.sharedDropRunStore = dropRunStore
+      DetachedWindowController.sharedPetStore = petStore
       let args = CommandLine.arguments
       if let idx = args.firstIndex(of: "--layout"), idx + 1 < args.count {
         applyLayout(spec: args[idx + 1])

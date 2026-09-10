@@ -21,6 +21,8 @@ enum DetachedWindowController {
   static var sharedDropRunStore: DropRunStore?
   /// 펫 스토어도 공유.
   static var sharedPetStore: PetStore?
+  /// 창 투명도 스토어도 공유.
+  static var sharedOpacityStore: WindowOpacityStore?
 
   static func open(session: TerminalSession) {
     let layout = LayoutStore(columns: [TerminalColumn(sessions: [session])])
@@ -41,6 +43,8 @@ enum DetachedWindowController {
     sharedDropRunStore = dropRunStore
     let petStore = sharedPetStore ?? PetStore()
     sharedPetStore = petStore
+    let opacityStore = sharedOpacityStore ?? WindowOpacityStore()
+    sharedOpacityStore = opacityStore
     let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 520),
                           styleMask: [.titled, .closable, .miniaturizable, .resizable],
                           backing: .buffered, defer: false)
@@ -56,6 +60,7 @@ enum DetachedWindowController {
       .environment(separatorStore)
       .environment(dropRunStore)
       .environment(petStore)
+      .environment(opacityStore)
       .environment(\.currentLayoutStore, layout)
     window.contentViewController = NSHostingController(rootView: root)
 
@@ -64,6 +69,8 @@ enum DetachedWindowController {
     window.delegate = WindowCleanup.shared
     controller.showWindow(nil)
     window.makeKeyAndOrderFront(nil)
+    // 새 창에도 전역 투명도 즉시 적용.
+    opacityStore.apply(to: window)
   }
 
   /// 창 타이틀 계산: pane 1개면 그 이름, 여러개면 " · " 로 연결. 이름 다 비면 "CusTerminal".

@@ -74,6 +74,7 @@ struct CommandListView: View {
             BackgroundPickerButton()
             SeparatorPickerButton()
             PetPickerButton()
+            WindowOpacityButton()
           }
           .transition(.opacity.combined(with: .move(edge: .bottom)))
         }

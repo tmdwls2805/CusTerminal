@@ -102,6 +102,9 @@ Two pieces:
     → Sidebar → Settings → **Pet**. Set counts (0~5) for cats / dogs / turtles / ducks.
     Tiny pixel critters walk along the bottom of the window, bumping into edges and turning around. Purely for fun. Pet counts are shared across the main and detached windows.
 
+18. **Window transparency**
+    → Sidebar → Settings → **Window opacity**. Slider from 40% to 100%, applied instantly to all windows (main + detached). Value is persisted across launches; new windows automatically pick up the current opacity.
+
 ### Download
 
 **Just want the app?** From the [Releases page](../../releases):
@@ -154,7 +157,7 @@ layout 4 3   # opens in CusTerminal instead of iTerm
 - [x] Background image (global / per-pane)
 - [ ] Scrollback text search (`⌘F`) with jump-to-match
 - [x] Pixel pets walking at the bottom (cat / dog / turtle / duck, 0~5 each)
-- [ ] Window transparency
+- [x] Window transparency (global, 40%~100%)
 
 ### Making a release (maintainer)
 ```bash
@@ -250,6 +253,9 @@ Requires `gh` CLI. Builds → ad-hoc signs → creates DMG → uploads to GitHub
     → 사이드바 → 설정 → **펫**. 고양이 / 강아지 / 거북이 / 오리 종별 마릿수 (0~5) 지정.
     작은 픽셀 캐릭터들이 창 하단을 좌우로 걸어다녀요. 벽에 닿으면 방향 전환, 랜덤하게 되돌기도 함. 순수한 재미 요소. 메인 창·새 창 간 마릿수 공유.
 
+18. **창 투명도**
+    → 사이드바 → 설정 → **창 투명도**. 40%~100% 슬라이더로 조절. 모든 창(메인 + 새 창)에 즉시 반영. 앱 재실행 후에도 값 유지되고, 새 창은 자동으로 현재 투명도 적용.
+
 ### 다운로드
 
 **앱만 쓰고 싶으면** [Releases 페이지](../../releases) 에서:
@@ -302,7 +308,7 @@ layout 4 3   # iTerm 대신 CusTerminal 로 열림
 - [x] 배경 이미지 (전역 / 세션별)
 - [ ] 스크롤백 텍스트 검색 (`⌘F`) + 하이라이트 점프
 - [x] 픽셀 펫 (창 하단 걸어다니는 고양이/강아지/거북이/오리, 종별 0~5)
-- [ ] 창 투명도
+- [x] 창 투명도 (전역, 40%~100%)
 
 ### 릴리즈 만들기 (관리자용)
 ```bash

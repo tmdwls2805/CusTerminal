@@ -10,6 +10,7 @@ struct ContentView: View {
   @State private var separatorStore = SeparatorStore()
   @State private var dropRunStore = DropRunStore()
   @State private var petStore = PetStore()
+  @State private var opacityStore = WindowOpacityStore()
   @StateObject private var layout = LayoutStore()
   @State private var showLayoutPrompt: Bool = false
   @State private var sidebarVisible: Bool = true
@@ -46,6 +47,7 @@ struct ContentView: View {
     .environment(separatorStore)
     .environment(dropRunStore)
     .environment(petStore)
+    .environment(opacityStore)
     .environment(\.currentLayoutStore, layout)
     // 메인 창 title 을 pane 이름들로 갱신 (Dock 우클릭 · Window 메뉴에서 구분되게).
     .navigationTitle(DetachedWindowController.titleFor(layout: layout))
@@ -68,6 +70,9 @@ struct ContentView: View {
       DetachedWindowController.sharedSeparatorStore = separatorStore
       DetachedWindowController.sharedDropRunStore = dropRunStore
       DetachedWindowController.sharedPetStore = petStore
+      DetachedWindowController.sharedOpacityStore = opacityStore
+      // 앱 시작 시 저장된 투명도를 모든 창에 적용.
+      DispatchQueue.main.async { opacityStore.applyToAllWindows() }
       let args = CommandLine.arguments
       if let idx = args.firstIndex(of: "--layout"), idx + 1 < args.count {
         applyLayout(spec: args[idx + 1])

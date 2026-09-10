@@ -207,11 +207,18 @@ struct TerminalPane: View {
         return true
       }
       // 텍스트(카드) 드롭 → 명령 텍스트 send.
-      // autoRun 옵션에 따라 개행까지 붙여 자동 실행할지, 프롬프트에 텍스트만 얹을지 결정.
+      // 카드에서 온 payload 는 "CUSTERMINAL_CARD:<uuid>:<text>" 형식이므로 stripping.
       guard let provider = providers.first else { return false }
       _ = provider.loadObject(ofClass: NSString.self) { item, _ in
         guard let text = item as? String else { return }
-        let command = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        var command = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let prefix = "CUSTERMINAL_CARD:"
+        if command.hasPrefix(prefix) {
+          let rest = String(command.dropFirst(prefix.count))
+          // <uuid>:<text> → 두 번째 콜론 이후가 실제 명령.
+          let parts = rest.split(separator: ":", maxSplits: 1)
+          if parts.count == 2 { command = String(parts[1]) }
+        }
         guard !command.isEmpty else { return }
         DispatchQueue.main.async {
           let payload = dropRunStore.autoRun ? command + "\n" : command

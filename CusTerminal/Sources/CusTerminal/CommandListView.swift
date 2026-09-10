@@ -13,6 +13,8 @@ struct CommandListView: View {
   @Bindable var store: CommandStore
   @State private var input: String = ""
   @State private var settingsExpanded: Bool = false
+  /// 미분류 그룹 접힘/펴짐 상태.
+  @State private var uncategorizedExpanded: Bool = true
 
   var body: some View {
     VStack(spacing: 8) {
@@ -67,7 +69,7 @@ struct CommandListView: View {
             }
           } else if !store.folders.isEmpty {
             // 폴더가 있으면 미분류 그룹도 항상 표시 (비어있어도).
-            UncategorizedGroup(store: store, commands: uncategorized)
+            UncategorizedGroup(store: store, commands: uncategorized, expanded: $uncategorizedExpanded)
           }
           // 각 폴더 자체가 폴더-재배치 drop 을 받음 (위/아래 절반에 따라 앞뒤 삽입).
           ForEach(store.folders) { folder in
@@ -126,8 +128,102 @@ struct CommandListView: View {
   }
 
   private func submit() {
-    store.add(input)
+    let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !text.isEmpty else { return }
+    store.add(text)
     input = ""
+    // 새 카드는 미분류로 들어가니, 접혀있으면 열어서 방금 추가한 게 보이게.
+    withAnimation(.spring(response: 0.3, dampingFraction: 0.78)) {
+      uncategorizedExpanded = true
+    }
+  }
+}
+
+/// 카드 드롭과 폴더 재배치 드롭을 하나의 delegate 에서 처리.
+/// providers 안에 folder-id 타입이 있으면 폴더 재배치, 없으면 카드 이동.
+private struct FolderCombinedDropDelegate: DropDelegate {
+  let store: CommandStore
+  let target: UUID
+  @Binding var folderPosition: FolderGroup.FolderInsertPosition
+  @Binding var cardTargeted: Bool
+
+  private func hasFolder(_ info: DropInfo) -> Bool {
+    info.hasItemsConforming(to: [folderIDType])
+  }
+
+  func validateDrop(info: DropInfo) -> Bool { true }
+
+  func dropEntered(info: DropInfo) {
+    if hasFolder(info) {
+      folderPosition = .above
+      cardTargeted = false
+      reorderInPlace(info: info)
+    } else {
+      folderPosition = .none
+      cardTargeted = true
+    }
+  }
+
+  func dropUpdated(info: DropInfo) -> DropProposal? {
+    if hasFolder(info) {
+      cardTargeted = false
+      reorderInPlace(info: info)
+      return DropProposal(operation: .move)
+    } else {
+      folderPosition = .none
+      cardTargeted = true
+      return DropProposal(operation: .copy)
+    }
+  }
+
+  func dropExited(info: DropInfo) {
+    folderPosition = .none
+    cardTargeted = false
+  }
+
+  func performDrop(info: DropInfo) -> Bool {
+    defer {
+      folderPosition = .none
+      cardTargeted = false
+    }
+    if hasFolder(info) {
+      // 이미 실시간 재배치되어 있으니 상태 리셋만.
+      return true
+    }
+    // 카드 이동.
+    let providers = info.itemProviders(for: [.text, .plainText, .utf8PlainText])
+    _ = handleCardDrop(providers: providers, to: target, store: store)
+    return true
+  }
+
+  private func reorderInPlace(info: DropInfo) {
+    let providers = info.itemProviders(for: [folderIDType])
+    guard let provider = providers.first else { return }
+    provider.loadDataRepresentation(forTypeIdentifier: folderIDType.identifier) { data, _ in
+      guard let data,
+            let str = String(data: data, encoding: .utf8),
+            let srcID = UUID(uuidString: str)
+      else { return }
+      DispatchQueue.main.async {
+        guard srcID != target,
+              let srcIdx = store.folders.firstIndex(where: { $0.id == srcID }),
+              let dstIdx = store.folders.firstIndex(where: { $0.id == target })
+        else { return }
+        let y = info.location.y
+        let before = y < 20
+        let desiredIdx = before
+          ? (srcIdx < dstIdx ? dstIdx - 1 : dstIdx)
+          : (srcIdx < dstIdx ? dstIdx : dstIdx + 1)
+        if srcIdx == desiredIdx {
+          folderPosition = before ? .above : .below
+          return
+        }
+        withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+          store.reorderFolder(source: srcID, target: target, before: before)
+        }
+        folderPosition = before ? .above : .below
+      }
+    }
   }
 }
 
@@ -239,22 +335,41 @@ private struct FolderReorderSlot: View {
   }
 }
 
-/// 카드 ID provider 를 읽어 store 에서 targetFolder 로 이동시킴.
+/// plain text provider 에서 "CUSTERMINAL_CARD:<uuid>:<text>" 형식 파싱해 카드 이동.
 /// - to=nil 이면 미분류로.
 @discardableResult
 private func handleCardDrop(providers: [NSItemProvider],
                             to folderID: UUID?,
                             store: CommandStore) -> Bool {
-  guard let provider = providers.first(where: {
-    $0.hasItemConformingToTypeIdentifier(commandCardIDType.identifier)
-  }) else { return false }
-  provider.loadDataRepresentation(forTypeIdentifier: commandCardIDType.identifier) { data, _ in
-    guard let data,
-          let str = String(data: data, encoding: .utf8),
-          let cardID = UUID(uuidString: str)
-    else { return }
+  Log.write("handleCardDrop providers=\(providers.count) to=\(folderID?.uuidString.prefix(4) ?? "미분류")")
+  guard let provider = providers.first else {
+    Log.write("  no provider → abort")
+    return false
+  }
+  Log.write("  provider types=\(provider.registeredTypeIdentifiers)")
+  _ = provider.loadObject(ofClass: NSString.self) { obj, err in
+    if let err { Log.write("  loadObject error: \(err)") }
+    guard let text = obj as? String else {
+      Log.write("  no string from provider")
+      return
+    }
+    Log.write("  text prefix=\(text.prefix(40))")
+    let prefix = "CUSTERMINAL_CARD:"
+    guard text.hasPrefix(prefix) else {
+      Log.write("  no CUSTERMINAL_CARD prefix → not a card drop")
+      return
+    }
+    let rest = String(text.dropFirst(prefix.count))
+    let parts = rest.split(separator: ":", maxSplits: 1)
+    guard let idPart = parts.first, let cardID = UUID(uuidString: String(idPart)) else {
+      Log.write("  failed to parse card UUID from '\(rest.prefix(40))'")
+      return
+    }
+    Log.write("  parsed cardID=\(cardID.uuidString.prefix(4)) → move")
     DispatchQueue.main.async {
-      store.move(cardID, to: folderID)
+      withAnimation(.spring(response: 0.3, dampingFraction: 0.78)) {
+        store.move(cardID, to: folderID)
+      }
     }
   }
   return true
@@ -285,8 +400,11 @@ private func handleFolderReorder(providers: [NSItemProvider],
 private struct UncategorizedGroup: View {
   @Bindable var store: CommandStore
   let commands: [SavedCommand]
-  @State private var expanded: Bool = true
+  @Binding var expanded: Bool
   @State private var isDropTarget: Bool = false
+
+  /// 새 카드가 위에 오도록 뒤집어 표시. 저장된 배열 순서 자체는 안 건드림.
+  private var displayCommands: [SavedCommand] { commands.reversed() }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 4) {
@@ -319,11 +437,13 @@ private struct UncategorizedGroup: View {
               .frame(maxWidth: .infinity, alignment: .leading)
               .padding(.vertical, 6)
           } else {
-            ForEach(commands) { cmd in
+            ForEach(displayCommands) { cmd in
               CommandCardRow(store: store, command: cmd)
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
           }
         }
+        .animation(.spring(response: 0.3, dampingFraction: 0.78), value: commands.map(\.id))
       }
     }
     .padding(4)
@@ -331,8 +451,9 @@ private struct UncategorizedGroup: View {
       RoundedRectangle(cornerRadius: 6)
         .stroke(isDropTarget ? Color.accentColor : .clear, lineWidth: 2)
     )
-    .onDrop(of: [commandCardIDType], isTargeted: $isDropTarget) { providers in
-      handleCardDrop(providers: providers, to: nil, store: store)
+    .onDrop(of: [.text, .plainText, .utf8PlainText], isTargeted: $isDropTarget) { providers in
+      Log.write("UncategorizedGroup.onDrop providers=\(providers.count)")
+      return handleCardDrop(providers: providers, to: nil, store: store)
     }
   }
 }
@@ -469,16 +590,15 @@ private struct FolderGroup: View {
       }
     }
     .animation(.easeInOut(duration: 0.12), value: folderInsertPosition)
-    // 폴더 재배치 delegate 를 먼저 붙여 우선순위 확보.
-    .onDrop(of: [folderIDType], delegate: FolderDropDelegate(
-      store: store,
-      target: folder.id,
-      position: $folderInsertPosition
-    ))
-    // 카드 드롭: 이 폴더로 이동. 폴더 드래그 중일 땐 위 delegate 가 이미 잡음.
-    .onDrop(of: [commandCardIDType], isTargeted: $isCardDropTarget) { providers in
-      handleCardDrop(providers: providers, to: folder.id, store: store)
-    }
+    // 카드/폴더 드롭을 하나의 delegate 로 통합. payload 종류에 따라 분기.
+    // (두 onDrop 을 겹쳐 놓으면 앞의 것이 뒤의 것을 삼켜 다른 폴더로 카드 이동이 안 되는 문제)
+    .onDrop(of: [folderIDType, .text, .plainText, .utf8PlainText],
+            delegate: FolderCombinedDropDelegate(
+              store: store,
+              target: folder.id,
+              folderPosition: $folderInsertPosition,
+              cardTargeted: $isCardDropTarget
+            ))
   }
 
   /// 폴더 사이 삽입 위치 라인 (파란 굵은 라인 + 그림자).
@@ -528,18 +648,13 @@ private struct CommandCardRow: View {
         .fill(Color(nsColor: .controlBackgroundColor))
     )
     .onDrag {
-      // Provider 하나에 두 representation 등록:
-      //  - plain text (기존): pane 이 감지해 명령 실행
-      //  - card ID (신규): 폴더 헤더가 감지해 카드 이동
-      let provider = NSItemProvider()
-      provider.registerObject(command.text as NSString, visibility: .all)
-      let idData = command.id.uuidString.data(using: .utf8) ?? Data()
-      provider.registerDataRepresentation(forTypeIdentifier: commandCardIDType.identifier,
-                                          visibility: .all) { completion in
-        completion(idData, nil)
-        return nil
-      }
-      return provider
+      // 하나의 plain text provider 로 통합.
+      // 형식: "CUSTERMINAL_CARD:<uuid>:<command_text>"
+      //  - 폴더 drop: prefix 매칭 → uuid 파싱해 이동
+      //  - pane drop: prefix 있으면 stripping 후 실행 (or 그대로 실행 후 실패도 OK)
+      // 커스텀 UTType 은 SwiftUI onDrop 이 잘 못 잡는 경우가 있어 표준 plainText 만 사용.
+      let payload = "CUSTERMINAL_CARD:\(command.id.uuidString):\(command.text)"
+      return NSItemProvider(object: payload as NSString)
     }
     .contextMenu {
       Menu("폴더로 이동") {

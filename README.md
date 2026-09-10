@@ -68,6 +68,10 @@ Two pieces:
     <p align="center">
       <img src="docs/screenshots/theme-picker.png" alt="Theme picker" width="480" />
       <img src="docs/screenshots/custom-theme-editor.png" alt="Custom theme editor" width="480" />
+      <br />
+      <img src="docs/screenshots/custom-theme-preview.png" alt="Custom theme preview" width="720" />
+      <br />
+      <em>Custom theme applied — background/foreground/cursor/selection colors picked from the editor render live in the terminal.</em>
     </p>
 
 12. **Custom layout dialog.**
@@ -101,9 +105,11 @@ Two pieces:
 17. **Pixel pets walking at the bottom of the window 🐱🐕🐢🦆**
     → Sidebar → Settings → **Pet**. Set counts (0~5) for cats / dogs / turtles / ducks.
     Tiny pixel critters walk along the bottom of the window, bumping into edges and turning around. Purely for fun. Pet counts are shared across the main and detached windows.
+    <p align="center"><img src="docs/screenshots/pet-picker.png" alt="Pet picker" width="440" /></p>
 
 18. **Window transparency**
     → Sidebar → Settings → **Window opacity**. Slider from 40% to 100%, applied instantly to all windows (main + detached). Value is persisted across launches; new windows automatically pick up the current opacity.
+    <p align="center"><img src="docs/screenshots/opacity-picker.png" alt="Opacity picker" width="440" /></p>
 
 19. **Command folders (with drag-to-reorder)**
     → **"Add folder"** button below the input creates a folder. Right-click any card → **"Move to folder"** puts it in one.
@@ -112,6 +118,11 @@ Two pieces:
     - **Uncategorized is always pinned to the top** (you can't move it, and can't drag folders into folders).
     - **Delete options**: empty folder deletes immediately. Non-empty gets two choices — move cards to Uncategorized, or delete folder + cards with a confirmation alert.
     - Collapsed state per folder is persisted.
+    <p align="center"><img src="docs/screenshots/move-to-folder.png" alt="Move to folder" width="440" /></p>
+
+20. **Command separator lines (optional)**
+    → Sidebar → Settings → **Separator**. Toggle on to print custom lines before & after every command (via zsh preexec/precmd hooks). Fully customizable start/end char & labels (with `{cmd}` placeholder). Also has a "Auto-run on card drop" option.
+    <p align="center"><img src="docs/screenshots/separator-picker.png" alt="Separator picker" width="440" /></p>
 
 ### Download
 
@@ -228,6 +239,10 @@ Requires `gh` CLI. Builds → ad-hoc signs → creates DMG → uploads to GitHub
     <p align="center">
       <img src="docs/screenshots/theme-picker.png" alt="테마 팔레트" width="480" />
       <img src="docs/screenshots/custom-theme-editor.png" alt="커스텀 테마 편집기" width="480" />
+      <br />
+      <img src="docs/screenshots/custom-theme-preview.png" alt="커스텀 테마 실제 적용 미리보기" width="720" />
+      <br />
+      <em>커스텀 테마 실제 적용 모습 — 배경/글씨/커서/선택 색이 편집기에서 고른 대로 터미널에 그대로 반영됨.</em>
     </p>
 
 12. **레이아웃 다이얼로그**
@@ -261,9 +276,11 @@ Requires `gh` CLI. Builds → ad-hoc signs → creates DMG → uploads to GitHub
 17. **창 하단에 걸어다니는 픽셀 펫 🐱🐕🐢🦆**
     → 사이드바 → 설정 → **펫**. 고양이 / 강아지 / 거북이 / 오리 종별 마릿수 (0~5) 지정.
     작은 픽셀 캐릭터들이 창 하단을 좌우로 걸어다녀요. 벽에 닿으면 방향 전환, 랜덤하게 되돌기도 함. 순수한 재미 요소. 메인 창·새 창 간 마릿수 공유.
+    <p align="center"><img src="docs/screenshots/pet-picker.png" alt="펫 팝오버" width="440" /></p>
 
 18. **창 투명도**
     → 사이드바 → 설정 → **창 투명도**. 40%~100% 슬라이더로 조절. 모든 창(메인 + 새 창)에 즉시 반영. 앱 재실행 후에도 값 유지되고, 새 창은 자동으로 현재 투명도 적용.
+    <p align="center"><img src="docs/screenshots/opacity-picker.png" alt="창 투명도 팝오버" width="440" /></p>
 
 19. **명령 폴더 (드래그로 순서 변경)**
     → 입력창 아래 **"폴더 추가"** 버튼으로 폴더 생성. 카드 우클릭 → **"폴더로 이동"** 으로 넣기.
@@ -272,6 +289,11 @@ Requires `gh` CLI. Builds → ad-hoc signs → creates DMG → uploads to GitHub
     - **"미분류" 는 항상 맨 위 고정** — 폴더 안에 폴더 못 넣음.
     - **삭제 옵션**: 빈 폴더는 바로 삭제. 카드 있는 폴더는 두 가지 — "카드는 미분류로" or "폴더 + 카드 모두 삭제" (확인 다이얼로그).
     - 폴더별 접힘 상태도 저장됨.
+    <p align="center"><img src="docs/screenshots/move-to-folder.png" alt="폴더 이동 우클릭 메뉴" width="440" /></p>
+
+20. **명령어 구분선 (선택)**
+    → 사이드바 → 설정 → **구분선**. 켜면 모든 명령 실행 앞뒤에 커스텀 라인이 출력됨 (zsh preexec/precmd 훅). 시작/끝 문자, 라벨 (`{cmd}` 치환) 자유 커스텀. "카드 드롭 시 자동 실행" 옵션도 함께.
+    <p align="center"><img src="docs/screenshots/separator-picker.png" alt="구분선 팝오버" width="440" /></p>
 
 ### 다운로드
 

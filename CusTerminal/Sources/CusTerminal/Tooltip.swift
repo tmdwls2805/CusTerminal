@@ -97,6 +97,7 @@ private final class TooltipPanel {
   private let label: NSTextField
   private let container: NSView
   weak var currentOwner: HoverTrackingView?
+  private var clickMonitor: Any?
 
   private init() {
     let padding: CGFloat = 8
@@ -145,6 +146,13 @@ private final class TooltipPanel {
   func show(text: String, near viewFrameOnScreen: NSRect, owner: HoverTrackingView) {
     label.stringValue = text
     resize()
+    // 마우스 클릭 즉시 툴팁 숨김. (동일 뷰를 계속 hover 해도 다음 mouseEntered 시 다시 뜸)
+    if clickMonitor == nil {
+      clickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]) { [weak self] event in
+        self?.hide()
+        return event
+      }
+    }
     let size = panel.frame.size
     let gap: CGFloat = 8
     // macOS 화면 좌표계는 좌하단 원점.
@@ -172,6 +180,10 @@ private final class TooltipPanel {
   func hide() {
     panel.orderOut(nil)
     currentOwner = nil
+    if let m = clickMonitor {
+      NSEvent.removeMonitor(m)
+      clickMonitor = nil
+    }
   }
 
   private func resize() {

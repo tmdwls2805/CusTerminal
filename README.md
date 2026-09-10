@@ -105,6 +105,14 @@ Two pieces:
 18. **Window transparency**
     → Sidebar → Settings → **Window opacity**. Slider from 40% to 100%, applied instantly to all windows (main + detached). Value is persisted across launches; new windows automatically pick up the current opacity.
 
+19. **Command folders (with drag-to-reorder)**
+    → **"Add folder"** button below the input creates a folder. Right-click any card → **"Move to folder"** puts it in one.
+    - **Drag a card** onto a folder group to move it there. Drop on "Uncategorized" to take it back out.
+    - **Drag a folder** to reorder — folder headers are draggable across their full width. Live preview: other folders slide out of the way while you drag, and a blue line shows the insertion point.
+    - **Uncategorized is always pinned to the top** (you can't move it, and can't drag folders into folders).
+    - **Delete options**: empty folder deletes immediately. Non-empty gets two choices — move cards to Uncategorized, or delete folder + cards with a confirmation alert.
+    - Collapsed state per folder is persisted.
+
 ### Download
 
 **Just want the app?** From the [Releases page](../../releases):
@@ -155,9 +163,10 @@ layout 4 3   # opens in CusTerminal instead of iTerm
 - [x] Reset to defaults (per-pane or full)
 - [x] Per-pane command history popover (time order, expand for CWD/exit/stdout)
 - [x] Background image (global / per-pane)
-- [ ] Scrollback text search (`⌘F`) with jump-to-match
 - [x] Pixel pets walking at the bottom (cat / dog / turtle / duck, 0~5 each)
 - [x] Window transparency (global, 40%~100%)
+- [x] Command folders (create / rename / drag reorder / drop cards)
+- [ ] Scrollback text search (`⌘F`) with jump-to-match
 
 ### Making a release (maintainer)
 ```bash
@@ -256,6 +265,14 @@ Requires `gh` CLI. Builds → ad-hoc signs → creates DMG → uploads to GitHub
 18. **창 투명도**
     → 사이드바 → 설정 → **창 투명도**. 40%~100% 슬라이더로 조절. 모든 창(메인 + 새 창)에 즉시 반영. 앱 재실행 후에도 값 유지되고, 새 창은 자동으로 현재 투명도 적용.
 
+19. **명령 폴더 (드래그로 순서 변경)**
+    → 입력창 아래 **"폴더 추가"** 버튼으로 폴더 생성. 카드 우클릭 → **"폴더로 이동"** 으로 넣기.
+    - **카드를 폴더 그룹으로 드래그** 하면 그 폴더로 이동. "미분류" 로 드래그하면 폴더에서 뺌.
+    - **폴더 드래그로 순서 변경** — 폴더 헤더 가로 영역 전체가 드래그 소스. 드래그 중에 다른 폴더가 spring 애니메이션으로 밀려나고, 삽입 위치에 파란 라인 표시.
+    - **"미분류" 는 항상 맨 위 고정** — 폴더 안에 폴더 못 넣음.
+    - **삭제 옵션**: 빈 폴더는 바로 삭제. 카드 있는 폴더는 두 가지 — "카드는 미분류로" or "폴더 + 카드 모두 삭제" (확인 다이얼로그).
+    - 폴더별 접힘 상태도 저장됨.
+
 ### 다운로드
 
 **앱만 쓰고 싶으면** [Releases 페이지](../../releases) 에서:
@@ -306,9 +323,10 @@ layout 4 3   # iTerm 대신 CusTerminal 로 열림
 - [x] 기본값으로 되돌리기
 - [x] pane 별 명령 히스토리 팝오버 (시간순 · 결과 접기/펼치기)
 - [x] 배경 이미지 (전역 / 세션별)
-- [ ] 스크롤백 텍스트 검색 (`⌘F`) + 하이라이트 점프
 - [x] 픽셀 펫 (창 하단 걸어다니는 고양이/강아지/거북이/오리, 종별 0~5)
 - [x] 창 투명도 (전역, 40%~100%)
+- [x] 명령 폴더 (생성 / 이름 변경 / 드래그 재배치 / 카드 드롭)
+- [ ] 스크롤백 텍스트 검색 (`⌘F`) + 하이라이트 점프
 
 ### 릴리즈 만들기 (관리자용)
 ```bash

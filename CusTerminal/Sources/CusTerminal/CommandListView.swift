@@ -84,11 +84,17 @@ struct CommandListView: View {
       VStack(spacing: 6) {
         Divider()
         Button {
-          withAnimation(.easeInOut(duration: 0.18)) { settingsExpanded.toggle() }
+          withAnimation(.spring(response: 0.32, dampingFraction: 0.78)) {
+            settingsExpanded.toggle()
+          }
         } label: {
           HStack(spacing: 6) {
-            Image(systemName: settingsExpanded ? "chevron.down" : "chevron.up")
+            // 아이콘 하나만 두고 회전 → 펴짐 시 아래 (0°), 접힘 시 위 (180°).
+            // 아이콘 자체가 rotation 애니메이션과 함께 부드럽게 돎.
+            Image(systemName: "chevron.down")
               .font(.system(size: 10, weight: .semibold))
+              .rotationEffect(.degrees(settingsExpanded ? 0 : 180))
+              .animation(.spring(response: 0.32, dampingFraction: 0.78), value: settingsExpanded)
             Text("설정")
               .font(.system(size: 11, weight: .semibold))
               .foregroundStyle(.secondary)
